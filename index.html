@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>宣和骨牌 · 试玩原型</title>
+<style>
+  :root{
+    --paper:#f3ecda; --paper2:#ece1c8; --ink:#2e2a24; --ink2:#6b6151;
+    --verm:#b23a2a; --bamboo:#476b5d; --gold:#b98a2f; --tile:#fffdf6; --tileline:#9a8a6d;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{background:var(--paper);color:var(--ink);font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+       min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:14px 10px 30px;
+       background-image:radial-gradient(ellipse at 20% 0%,rgba(185,138,47,.08),transparent 55%),
+                        radial-gradient(ellipse at 90% 100%,rgba(71,107,93,.08),transparent 50%)}
+  header{text-align:center;margin-bottom:8px}
+  h1{font-family:"Songti SC","STSong","SimSun",serif;font-size:32px;letter-spacing:8px;font-weight:700}
+  h1 .seal{display:inline-block;background:var(--verm);color:#fff;font-size:15px;letter-spacing:0;
+           width:26px;height:26px;line-height:26px;border-radius:5px;vertical-align:6px;margin-left:6px;transform:rotate(4deg)}
+  .sub{color:var(--ink2);font-size:12px;letter-spacing:2px;margin-top:2px}
+  .tabs{display:flex;gap:8px;margin:10px 0 6px}
+  .tab{border:1.5px solid var(--ink2);color:var(--ink2);background:transparent;border-radius:999px;
+       padding:5px 18px;font-size:14px;letter-spacing:2px;cursor:pointer}
+  .tab.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+  .nav{display:flex;align-items:center;gap:14px;margin:4px 0 8px;font-size:14px;color:var(--ink2)}
+  .nav button{background:none;border:none;font-size:19px;color:var(--ink);cursor:pointer;padding:2px 8px}
+  .nav .solved{color:var(--verm);font-size:12px;border:1px solid var(--verm);border-radius:4px;padding:0 4px;margin-left:4px}
+  .bar{display:flex;gap:16px;align-items:center;font-size:13px;color:var(--ink2);margin-bottom:8px}
+  .bar b{color:var(--ink);font-variant-numeric:tabular-nums}
+  .bar button{background:none;border:1px solid var(--ink2);color:var(--ink);border-radius:999px;padding:3px 12px;font-size:12.5px;cursor:pointer}
+  .bar button:active{background:var(--paper2)}
+  #boardWrap{width:min(94vw,430px)}
+  #board{display:grid;gap:3px;position:relative}
+  .cell{border-radius:7px;position:relative;aspect-ratio:1/1}
+  .cell .chip{position:absolute;top:2px;left:3px;font-size:11.5px;font-weight:700;color:#fff;
+              background:rgba(46,42,36,.72);border-radius:4px;padding:0 4px;line-height:17px;pointer-events:none;z-index:3}
+  .cell .chip.ok{background:var(--verm)}
+  .cell.cand{box-shadow:inset 0 0 0 3px rgba(178,58,42,.7);animation:candPulse 1.15s ease-in-out infinite}
+  @keyframes candPulse{0%,100%{box-shadow:inset 0 0 0 3px rgba(178,58,42,.35)}50%{box-shadow:inset 0 0 0 4px rgba(178,58,42,.8)}}
+  .hole{background:transparent}
+  .domino{position:relative;z-index:2;background:var(--tile);border:1.6px solid var(--tileline);border-radius:9px;
+          display:flex;box-shadow:0 1.5px 3px rgba(46,42,36,.25);cursor:pointer;overflow:hidden}
+  .domino.h{flex-direction:row}.domino.v{flex-direction:column}
+  .domino .half{flex:1;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);padding:11%}
+  .domino.h .half:first-child{border-right:1.6px solid var(--tileline)}
+  .domino.v .half:first-child{border-bottom:1.6px solid var(--tileline)}
+  .domino .pip{width:72%;height:72%;border-radius:50%;background:var(--verm);align-self:center;justify-self:center}
+  .domino.flash{animation:flash .8s}
+  @keyframes flash{0%,100%{box-shadow:0 1.5px 3px rgba(46,42,36,.25)}50%{box-shadow:0 0 0 4px rgba(178,58,42,.55)}}
+  #trayWrap{width:min(94vw,430px);margin-top:14px}
+  #trayLabel{font-size:12px;color:var(--ink2);letter-spacing:2px;margin-bottom:6px;text-align:center}
+  #tray{display:flex;flex-wrap:wrap;gap:9px;justify-content:center;min-height:56px}
+  #tray .domino{width:76px;height:38px;cursor:pointer}
+  #tray .domino.sel{outline:3px solid var(--verm);outline-offset:1.5px}
+  #tray .domino.ghost{visibility:hidden;cursor:default}
+  .tools{display:flex;gap:9px;justify-content:center;margin-top:12px}
+  .tools button{border:1.5px solid var(--ink);background:var(--paper);color:var(--ink);border-radius:999px;
+                padding:6px 18px;font-size:13.5px;letter-spacing:1px;cursor:pointer}
+  .tools button:active{background:var(--paper2)}
+  .tools button:disabled{opacity:.35}
+  footer{margin-top:18px;font-size:11px;color:var(--ink2);text-align:center;line-height:1.7}
+  #coach{display:none;width:min(94vw,430px);background:#fffdf6;border:1.8px solid var(--verm);border-radius:10px;
+         padding:10px 14px;margin-bottom:10px;font-size:14.5px;line-height:1.65;align-items:flex-start;gap:10px;
+         box-shadow:0 2px 8px rgba(178,58,42,.18)}
+  #coach.show{display:flex}
+  #coachTxt{flex:1}
+  #tutSkip{flex:none;background:none;border:1px solid var(--ink2);color:var(--ink2);border-radius:999px;
+           padding:2px 10px;font-size:12px;cursor:pointer;margin-top:2px}
+  .glow{animation:pulseGlow 1.1s ease-in-out infinite}
+  @keyframes pulseGlow{0%,100%{box-shadow:0 0 0 0 rgba(178,58,42,.15)}50%{box-shadow:0 0 0 6px rgba(178,58,42,.5)}}
+  .tut-lock{opacity:.35;pointer-events:none}
+  /* modal / win */
+  .mask{position:fixed;inset:0;background:rgba(46,42,36,.55);display:none;align-items:center;justify-content:center;z-index:50;padding:20px}
+  .mask.show{display:flex}
+  .card{background:var(--paper);border-radius:14px;max-width:360px;width:100%;padding:22px 20px;box-shadow:0 12px 40px rgba(0,0,0,.3);max-height:88vh;overflow-y:auto}
+  .card h2{font-family:"Songti SC","STSong","SimSun",serif;letter-spacing:4px;font-size:21px;margin-bottom:10px;text-align:center}
+  .card p,.card li{font-size:14px;line-height:1.85;color:var(--ink)}
+  .card ul{padding-left:19px;margin:6px 0}
+  .card .legend b{display:inline-block;min-width:34px;color:var(--verm)}
+  .card .btns{display:flex;gap:10px;justify-content:center;margin-top:16px}
+  .card .btns button{border:none;border-radius:999px;padding:9px 22px;font-size:14.5px;cursor:pointer;letter-spacing:1px}
+  .btn-main{background:var(--verm);color:#fff}
+  .btn-sub{background:transparent;border:1.5px solid var(--ink2)!important;color:var(--ink)}
+  .winseal{width:86px;height:86px;background:var(--verm);border-radius:10px;margin:2px auto 12px;transform:rotate(-4deg);
+           display:flex;align-items:center;justify-content:center;color:#fff;font-family:"Songti SC","STSong","SimSun",serif;
+           font-size:52px;box-shadow:0 4px 14px rgba(178,58,42,.4);border:3px solid rgba(255,255,255,.5);outline:2px solid var(--verm)}
+  .winstats{text-align:center;font-size:14px;color:var(--ink2);line-height:1.9}
+  .winstats b{color:var(--ink)}
+</style>
+</head>
+<body>
+<header>
+  <h1>宣和骨牌<span class="seal">宣</span></h1>
+  <div class="sub">北宋宣和年间 · 传下来的骨牌智戏</div>
+</header>
+
+<div class="tabs" id="tabs">
+  <button class="tab on" data-tier="easy">简单</button>
+  <button class="tab" data-tier="medium">中等</button>
+  <button class="tab" data-tier="hard">困难</button>
+</div>
+<div class="nav">
+  <button id="prevBtn">‹</button>
+  <span>第 <b id="pIdx">1</b> 题 / <span id="pTotal">20</span><span class="solved" id="solvedTag" style="display:none">已解</span></span>
+  <button id="nextBtn">›</button>
+</div>
+<div class="bar">
+  <span>用时 <b id="clock">00:00</b></span>
+  <span>提示 <b id="hintCt">0</b></span>
+  <button id="howBtn">玩法</button>
+  <button id="tutBtn">教学</button>
+  <button id="resetBtn">重来</button>
+</div>
+
+<div id="coach"><span id="coachTxt"></span><button id="tutSkip">跳过</button></div>
+
+<div id="boardWrap"><div id="board"></div></div>
+
+<div id="trayWrap">
+  <div id="trayLabel">— 牌 席 —</div>
+  <div id="tray"></div>
+  <div class="tools">
+    <button id="rotBtn" disabled>方向：横</button>
+    <button id="flipBtn" disabled>翻转牌面</button>
+    <button id="hintBtn">提示一手（剩 3）</button>
+  </div>
+</div>
+
+<footer>试玩原型 · 题目由生成器离线生成，全部通过唯一解校验<br>点选手牌 → 点棋盘放下 · 点已放的牌可收回</footer>
+
+<div class="mask" id="howMask">
+  <div class="card">
+    <h2>玩法（详细版）</h2>
+    <p><b>目标：</b>把牌席里的骨牌<b>全部摆进棋盘</b>，并且让每个彩色区域都满足它的条件。</p>
+    <p><b>怎么放牌：</b>① 点一张牌选中它；② 需要的话，点「翻转牌面」调换左右两头，点「方向」换成横放或竖放；③ 点棋盘上的格子放下。放错了，点那张牌就能收回来。</p>
+    <p><b>区域的条件</b>写在每个区左上角的小标记上，一共五种：</p>
+    <ul class="legend">
+      <li><b>8</b>（数字）区内所有格子的点数加起来等于它。例：放 3 和 5，3+5=8 ✓；放 2 和 5 是 7 ✗</li>
+      <li><b>＝</b>区内每个格子的点数都相同。例：4、4 ✓；4、5 ✗</li>
+      <li><b>≠</b>区内点数互不相同，一个都不能重复。例：2、5、3 ✓；2、5、2 ✗（2 出现了两次）</li>
+      <li><b>&gt;3</b>区内每个格子都大于 3。例：4、6 ✓；4、3 ✗（3 不算大于 3）</li>
+      <li><b>&lt;5</b>区内每个格子都小于 5。例：0、2、4 ✓；5 ✗（5 不算小于 5）</li>
+      <li><b>无标记</b>自由区，怎么放都对</li>
+    </ul>
+    <p><b>怎么判定：</b>一个区要<i>摆满了</i>才会判定 — 满足条件，标记变朱砂色并打 ✓；摆满了还没变色，就是这个区放错了，收回来重放。</p>
+    <p><b>怎么算赢：</b>牌全部放完，并且每个区的标记都变朱砂色打 ✓。</p>
+    <p><b>小提示：</b>只有一个格子的区最简单 — 标记写几，那一格就放点数是几的那一半。卡住了就点「提示一手」，会帮你放对一张 — 每题最多用 3 次，用完就只能靠自己了。</p>
+    <div class="btns"><button class="btn-main" id="howTut">开始教学（30秒）</button><button class="btn-sub" id="howClose">先自己玩</button></div>
+  </div>
+</div>
+
+<div class="mask" id="winMask">
+  <div class="card">
+    <div class="winseal">解</div>
+    <h2>解开了</h2>
+    <div class="winstats" id="winStats"></div>
+    <div class="btns">
+      <button class="btn-sub" id="winAgain">再看一眼</button>
+      <button class="btn-main" id="winNext">下一题 ›</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const PUZZLES = {"easy": [{"w": 4, "h": 4, "cells": [[0, 1], [0, 2], [0, 3], [1, 1], [1, 2], [1, 3], [2, 0], [2, 1], [2, 2], [2, 3], [3, 2], [3, 3]], "dominoes": [[0, 6], [3, 3], [5, 5], [2, 4], [0, 1], [1, 3]], "regions": [[[0, 3], [1, 3]], [[1, 1], [2, 1]], [[0, 2], [1, 2]], [[3, 2]], [[0, 1]], [[2, 0]], [[2, 2]], [[2, 3]], [[3, 3]]], "conditions": [{"t": "eq"}, {"t": "sum", "v": 9}, {"t": "sum", "v": 11}, {"t": "sum", "v": 1}, {"t": "sum", "v": 0}, {"t": "sum", "v": 2}, {"t": "lt", "v": 1}, {"t": "sum", "v": 1}, {"t": "sum", "v": 3}], "solution": [{"cells": [[0, 1], [0, 2]], "vals": [0, 6]}, {"cells": [[0, 3], [1, 3]], "vals": [3, 3]}, {"cells": [[1, 1], [1, 2]], "vals": [5, 5]}, {"cells": [[2, 0], [2, 1]], "vals": [2, 4]}, {"cells": [[2, 2], [2, 3]], "vals": [0, 1]}, {"cells": [[3, 2], [3, 3]], "vals": [1, 3]}]}, {"w": 5, "h": 3, "cells": [[0, 1], [0, 2], [0, 3], [0, 4], [1, 0], [1, 1], [1, 2], [1, 3], [1, 4], [2, 0], [2, 2], [2, 3]], "dominoes": [[0, 2], [6, 6], [2, 2], [4, 4], [0, 0], [3, 3]], "regions": [[[1, 2], [1, 3], [2, 3]], [[1, 0], [1, 1], [2, 0]], [[0, 2]], [[0, 4], [1, 4]], [[0, 3]], [[2, 2]], [[0, 1]]], "conditions": [{"t": "sum", "v": 9}, {"t": "sum", "v": 8}, {"t": "sum", "v": 2}, {"t": "eq"}, {"t": "sum", "v": 6}, {"t": "sum", "v": 3}, {"t": "sum", "v": 0}], "solution": [{"cells": [[0, 1], [0, 2]], "vals": [0, 2]}, {"cells": [[0, 3], [1, 3]], "vals": [6, 6]}, {"cells": [[0, 4], [1, 4]], "vals": [2, 2]}, {"cells": [[1, 0], [2, 0]], "vals": [4, 4]}, {"cells": [[1, 1], [1, 2]], "vals": [0, 0]}, {"cells": [[2, 2], [2, 3]], "vals": [3, 3]}]}, {"w": 5, "h": 4, "cells": [[0, 0], [0, 1], [0, 2], [1, 0], [1, 1], [1, 2], [1, 3], [2, 0], [2, 1], [2, 3], [2, 4], [3, 0]], "dominoes": [[1, 0], [2, 5], [6, 6], [6, 4], [1, 5], [2, 0]], "regions": [[[1, 0], [2, 0]], [[1, 3], [2, 3]], [[1, 1], [2, 1]], [[0, 2]], [[0, 1]], [[3, 0]], [[2, 4]], [[0, 0]], [[1, 2]]], "conditions": [{"t": "neq"}, {"t": "neq"}, {"t": "eq"}, {"t": "sum", "v": 5}, {"t": "sum", "v": 2}, {"t": "sum", "v": 5}, {"t": "lt", "v": 1}, {"t": "sum", "v": 1}, {"t": "sum", "v": 6}], "solution": [{"cells": [[0, 0], [1, 0]], "vals": [1, 0]}, {"cells": [[0, 1], [0, 2]], "vals": [2, 5]}, {"cells": [[1, 1], [2, 1]], "vals": [6, 6]}, {"cells": [[1, 2], [1, 3]], "vals": [6, 4]}, {"cells": [[2, 0], [3, 0]], "vals": [1, 5]}, {"cells": [[2, 3], [2, 4]], "vals": [2, 0]}]}, {"w": 5, "h": 4, "cells": [[0, 1], [1, 0], [1, 1], [1, 3], [2, 0], [2, 1], [2, 2], [2, 3], [2, 4], [3, 2], [3, 3], [3, 4]], "dominoes": [[0, 1], [6, 6], [0, 6], [2, 3], [5, 2], [1, 1]], "regions": [[[1, 0], [2, 0]], [[2, 3], [2, 4], [3, 3]], [[1, 1], [2, 1]], [[3, 2]], [[3, 4]], [[0, 1]], [[1, 3]], [[2, 2]]], "conditions": [{"t": "eq"}, {"t": "neq"}, {"t": "sum", "v": 3}, {"t": "sum", "v": 1}, {"t": "sum", "v": 2}, {"t": "sum", "v": 0}, {"t": "sum", "v": 0}, {"t": "sum", "v": 3}], "solution": [{"cells": [[0, 1], [1, 1]], "vals": [0, 1]}, {"cells": [[1, 0], [2, 0]], "vals": [6, 6]}, {"cells": [[1, 3], [2, 3]], "vals": [0, 6]}, {"cells": [[2, 1], [2, 2]], "vals": [2, 3]}, {"cells": [[2, 4], [3, 4]], "vals": [5, 2]}, {"cells": [[3, 2], [3, 3]], "vals": [1, 1]}]}, {"w": 5, "h": 4, "cells": [[0, 0], [0, 1], [0, 2], [0, 3], [0, 4], [1, 0], [1, 2], [1, 3], [2, 0], [2, 3], [2, 4], [3, 4]], "dominoes": [[0, 0], [0, 3], [6, 2], [1, 1], [5, 5], [3, 6]], "regions": [[[0, 3], [1, 2], [1, 3], [2, 3]], [[3, 4]], [[1, 0], [2, 0]], [[0, 0], [0, 1]], [[0, 4]], [[2, 4]], [[0, 2]]], "conditions": [{"t": "sum", "v": 19}, {"t": "sum", "v": 6}, {"t": "lt", "v": 2}, {"t": "sum", "v": 0}, {"t": "sum", "v": 2}, {"t": "sum", "v": 3}, {"t": "sum", "v": 0}], "solution": [{"cells": [[0, 0], [0, 1]], "vals": [0, 0]}, {"cells": [[0, 2], [1, 2]], "vals": [0, 3]}, {"cells": [[0, 3], [0, 4]], "vals": [6, 2]}, {"cells": [[1, 0], [2, 0]], "vals": [1, 1]}, {"cells": [[1, 3], [2, 3]], "vals": [5, 5]}, {"cells": [[2, 4], [3, 4]], "vals": [3, 6]}]}, {"w": 5, "h": 3, "cells": [[0, 0], [0, 1], [0, 3], [1, 0], [1, 1], [1, 2], [1, 3], [2, 0], [2, 1], [2, 2], [2, 3], [2, 4]], "dominoes": [[2, 2], [0, 4], [4, 2], [1, 1], [5, 5], [3, 3]], "regions": [[[1, 0], [2, 0]], [[1, 1], [1, 2]], [[1, 3], [2, 2], [2, 3]], [[2, 1]], [[2, 4]], [[0, 3]], [[0, 0]], [[0, 1]]], "conditions": [{"t": "neq"}, {"t": "neq"}, {"t": "sum", "v": 6}, {"t": "sum", "v": 5}, {"t": "gt", "v": 2}, {"t": "sum", "v": 4}, {"t": "sum", "v": 2}, {"t": "lt", "v": 1}], "solution": [{"cells": [[0, 0], [1, 0]], "vals": [2, 2]}, {"cells": [[0, 1], [1, 1]], "vals": [0, 4]}, {"cells": [[0, 3], [1, 3]], "vals": [4, 2]}, {"cells": [[1, 2], [2, 2]], "vals": [1, 1]}, {"cells": [[2, 0], [2, 1]], "vals": [5, 5]}, {"cells": [[2, 3], [2, 4]], "vals": [3, 3]}]}, {"w": 4, "h": 4, "cells": [[0, 0], [0, 1], [0, 3], [1, 1], [1, 2], [1, 3], [2, 1], [2, 2], [2, 3], [3, 1], [3, 2], [3, 3]], "dominoes": [[3, 3], [0, 5], [0, 1], [2, 2], [6, 3], [5, 1]], "regions": [[[0, 0], [0, 1], [1, 1]], [[1, 2], [1, 3]], [[2, 1], [2, 2], [3, 2]], [[2, 3]], [[3, 1]], [[3, 3]], [[0, 3]]], "conditions": [{"t": "sum", "v": 6}, {"t": "gt", "v": 1}, {"t": "gt", "v": 0}, {"t": "gt", "v": 5}, {"t": "sum", "v": 5}, {"t": "sum", "v": 3}, {"t": "sum", "v": 0}], "solution": [{"cells": [[0, 0], [0, 1]], "vals": [3, 3]}, {"cells": [[0, 3], [1, 3]], "vals": [0, 5]}, {"cells": [[1, 1], [2, 1]], "vals": [0, 1]}, {"cells": [[1, 2], [2, 2]], "vals": [2, 2]}, {"cells": [[2, 3], [3, 3]], "vals": [6, 3]}, {"cells": [[3, 1], [3, 2]], "vals": [5, 1]}]}, {"w": 3, "h": 4, "cells": [[0, 0], [0, 1], [0, 2], [1, 0], [1, 1], [1, 2], [2, 0], [2, 1], [2, 2], [3, 0], [3, 1], [3, 2]], "dominoes": [[6, 6], [1, 1], [6, 3], [4, 5], [4, 4], [1, 0]], "regions": [[[3, 1], [3, 2]], [[0, 1]], [[1, 0], [2, 0]], [[2, 2]], [[1, 1], [1, 2], [2, 1]], [[3, 0]], [[0, 2]], [[0, 0]]], "conditions": [{"t": "neq"}, {"t": "sum", "v": 1}, {"t": "neq"}, {"t": "sum", "v": 1}, {"t": "sum", "v": 8}, {"t": "sum", "v": 5}, {"t": "sum", "v": 6}, {"t": "gt", "v": 5}], "solution": [{"cells": [[0, 0], [1, 0]], "vals": [6, 6]}, {"cells": [[0, 1], [1, 1]], "vals": [1, 1]}, {"cells": [[0, 2], [1, 2]], "vals": [6, 3]}, {"cells": [[2, 0], [3, 0]], "vals": [4, 5]}, {"cells": [[2, 1], [3, 1]], "vals": [4, 4]}, {"cells": [[2, 2], [3, 2]], "vals": [1, 0]}]}, {"w": 4, "h": 4, "cells": [[0, 0], [0, 1], [0, 2], [0, 3], [1, 0], [1, 1], [1, 2], [1, 3], [2, 0], [2, 2], [3, 0], [3, 2]], "dominoes": [[6, 6], [5, 4], [1, 1], [4, 3], [0, 0], [2, 2]], "regions": [[[1, 2], [1, 3]], [[2, 2], [3, 2]], [[0, 0], [0, 1]], [[1, 0], [2, 0]], [[3, 0]], [[0, 2]], [[0, 3]], [[1, 1]]], "conditions": [{"t": "free"}, {"t": "sum", "v": 4}, {"t": "sum", "v": 11}, {"t": "sum", "v": 6}, {"t": "lt", "v": 1}, {"t": "sum", "v": 4}, {"t": "lt", "v": 2}, {"t": "sum", "v": 4}], "solution": [{"cells": [[0, 0], [1, 0]], "vals": [6, 6]}, {"cells": [[0, 1], [0, 2]], "vals": [5, 4]}, {"cells": [[0, 3], [1, 3]], "vals": [1, 1]}, {"cells": [[1, 1], [1, 2]], "vals": [4, 3]}, {"cells": [[2, 0], [3, 0]], "vals": [0, 0]}, {"cells": [[2, 2], [3, 2]], "vals": [2, 2]}]}, {"w": 5, "h": 4, "cells": [[0, 4], [1, 2], [1, 3], [1, 4], [2, 2], [2, 3], [2, 4], [3, 0], [3, 1], [3, 2], [3, 3], [3, 4]], "dominoes": [[2, 2], [4, 4], [3, 3], [6, 6], [4, 0], [2, 6]], "regions": [[[2, 2], [3, 2]], [[1, 4], [2, 3], [2, 4], [3, 4]], [[1, 2], [1, 3]], [[0, 4]], [[3, 0]], [[3, 1]], [[3, 3]]], "conditions": [{"t": "sum", "v": 6}, {"t": "sum", "v": 17}, {"t": "neq"}, {"t": "sum", "v": 2}, {"t": "sum", "v": 4}, {"t": "sum", "v": 0}, {"t": "gt", "v": 5}], "solution": [{"cells": [[0, 4], [1, 4]], "vals": [2, 2]}, {"cells": [[1, 2], [2, 2]], "vals": [4, 4]}, {"cells": [[1, 3], [2, 3]], "vals": [3, 3]}, {"cells": [[2, 4], [3, 4]], "vals": [6, 6]}, {"cells": [[3, 0], [3, 1]], "vals": [4, 0]}, {"cells": [[3, 2], [3, 3]], "vals": [2, 6]}]}, {"w": 4, "h": 4, "cells": [[0, 0], [0, 1], [0, 2], [0, 3], [1, 2], [1, 3], [2, 1], [2, 2], [2, 3], [3, 1], [3, 2], [3, 3]], "dominoes": [[4, 2], [1, 1], [1, 5], [2, 5], [3, 3], [0, 6]], "regions": [[[1, 3], [2, 2], [2, 3]], [[0, 1], [0, 2]], [[2, 1], [3, 1]], [[3, 2], [3, 3]], [[0, 0]], [[1, 2]], [[0, 3]]], "conditions": [{"t": "gt", "v": 2}, {"t": "gt", "v": 0}, {"t": "sum", "v": 2}, {"t": "sum", "v": 9}, {"t": "sum", "v": 4}, {"t": "sum", "v": 1}, {"t": "sum", "v": 1}], "solution": [{"cells": [[0, 0], [0, 1]], "vals": [4, 2]}, {"cells": [[0, 2], [1, 2]], "vals": [1, 1]}, {"cells": [[0, 3], [1, 3]], "vals": [1, 5]}, {"cells": [[2, 1], [2, 2]], "vals": [2, 5]}, {"cells": [[2, 3], [3, 3]], "vals": [3, 3]}, {"cells": [[3, 1], [3, 2]], "vals": [0, 6]}]}, {"w": 4, "h": 4, "cells": [[0, 2], [0, 3], [1, 0], [1, 1], [1, 2], [1, 3], [2, 0], [2, 1], [2, 2], [2, 3], [3, 0], [3, 1]], "dominoes": [[0, 1], [6, 4], [3, 6], [2, 2], [5, 6], [0, 3]], "regions": [[[1, 0], [1, 1], [1, 2]], [[3, 1]], [[2, 1], [2, 2]], [[1, 3], [2, 3]], [[0, 2], [0, 3]], [[2, 0]], [[3, 0]]], "conditions": [{"t": "sum", "v": 6}, {"t": "sum", "v": 3}, {"t": "sum", "v": 7}, {"t": "sum", "v": 10}, {"t": "neq"}, {"t": "gt", "v": 5}, {"t": "sum", "v": 0}], "solution": [{"cells": [[0, 2], [1, 2]], "vals": [0, 1]}, {"cells": [[0, 3], [1, 3]], "vals": [6, 4]}, {"cells": [[1, 0], [2, 0]], "vals": [3, 6]}, {"cells": [[1, 1], [2, 1]], "vals": [2, 2]}, {"cells": [[2, 2], [2, 3]], "vals": [5, 6]}, {"cells": [[3, 0], [3, 1]], "vals": [0, 3]}]}, {"w": 5, "h": 4, "cells": [[0, 0], [0, 1], [0, 2], [0, 3], [0, 4], [1, 0], [1, 1], [1, 2], [1, 3], [2, 2], [2, 3], [3, 2]], "dominoes": [[3, 3], [4, 4], [4, 0], [1, 0], [6, 5], [2, 0]], "regions": [[[0, 1], [0, 2]], [[0, 3], [1, 3]], [[1, 2], [2, 2]], [[0, 0]], [[1, 0]], [[2, 3]], [[3, 2]], [[0, 4]], [[1, 1]]], "conditions": [{"t": "sum", "v": 8}, {"t": "sum", "v": 7}, {"t": "neq"}, {"t": "sum", "v": 3}, {"t": "lt", "v": 4}, {"t": "sum", "v": 5}, {"t": "sum", "v": 0}, {"t": "sum", "v": 0}, {"t": "gt", "v": 3}], "solution": [{"cells": [[0, 0], [1, 0]], "vals": [3, 3]}, {"cells": [[0, 1], [1, 1]], "vals": [4, 4]}, {"cells": [[0, 2], [1, 2]], "vals": [4, 0]}, {"cells": [[0, 3], [0, 4]], "vals": [1, 0]}, {"cells": [[1, 3], [2, 3]], "vals": [6, 5]}, {"cells": [[2, 2], [3, 2]], "vals": [2, 0]}]}, {"w": 5, "h": 4, "cells": [[0, 0], [1, 0], [1, 1], [2, 0], [2, 1], [2, 3], [2, 4], [3, 0], [3, 1], [3, 2], [3, 3], [3, 4]], "dominoes": [[1, 2], [2, 6], [3, 3], [0, 4], [5, 5], [0, 0]], "regions": [[[2, 1], [3, 1]], [[2, 0], [3, 0]], [[0, 0]], [[2, 3]], [[3, 2], [3, 3], [3, 4]], [[2, 4]], [[1, 0]], [[1, 1]]], "conditions": [{"t": "sum", "v": 11}, {"t": "sum", "v": 6}, {"t": "sum", "v": 1}, {"t": "sum", "v": 0}, {"t": "sum", "v": 5}, {"t": "sum", "v": 4}, {"t": "sum", "v": 2}, {"t": "sum", "v": 2}], "solution": [{"cells": [[0, 0], [1, 0]], "vals": [1, 2]}, {"cells": [[1, 1], [2, 1]], "vals": [2, 6]}, {"cells": [[2, 0], [3, 0]], "vals": [3, 3]}, {"cells": [[2, 3], [2, 4]], "vals": [0, 4]}, {"cells": [[3, 1], [3, 2]], "vals": [5, 5]}, {"cells": [[3, 3], [3, 4]], "vals": [0, 0]}]}, {"w": 5, "h": 4, "cells": [[0, 1], [0, 2], [0, 3], [0, 4], [1, 0], [1, 1], [1, 2], [1, 3], [1, 4], [2, 0], [2, 4], [3, 0]], "dominoes": [[3, 3], [1, 6], [6, 6], [0, 5], [0, 3], [1, 0]], "regions": [[[1, 0], [1, 1], [2, 0]], [[1, 3], [1, 4]], [[3, 0]], [[0, 1], [0, 2]], [[0, 4]], [[2, 4]], [[0, 3]], [[1, 2]]], "conditions": [{"t": "sum", "v": 13}, {"t": "lt", "v": 6}, {"t": "sum", "v": 0}, {"t": "sum", "v": 6}, {"t": "sum", "v": 6}, {"t": "sum", "v": 3}, {"t": "sum", "v": 1}, {"t": "sum", "v": 0}], "solution": [{"cells": [[0, 1], [0, 2]], "vals": [3, 3]}, {"cells": [[0, 3], [0, 4]], "vals": [1, 6]}, {"cells": [[1, 0], [1, 1]], "vals": [6, 6]}, {"cells": [[1, 2], [1, 3]], "vals": [0, 5]}, {"cells": [[1, 4], [2, 4]], "vals": [0, 3]}, {"cells": [[2, 0], [3, 0]], "vals": [1, 0]}]}, {"w": 5, "h": 4, "cells": [[0, 3], [0, 4], [1, 0], [1, 1], [1, 3], [2, 1], [2, 2], [2, 3], [2, 4], [3, 2], [3, 3], [3, 4]], "dominoes": [[4, 1], [3, 1], [5, 0], [2, 2], [5, 5], [4, 4]], "regions": [[[1, 1], [2, 1]], [[0, 3], [1, 3]], [[2, 4], [3, 3], [3, 4]], [[2, 2]], [[0, 4]], [[1, 0]], [[3, 2]], [[2, 3]]], "conditions": [{"t": "neq"}, {"t": "sum", "v": 9}, {"t": "gt", "v": 3}, {"t": "gt", "v": 1}, {"t": "sum", "v": 1}, {"t": "sum", "v": 3}, {"t": "sum", "v": 4}, {"t": "sum", "v": 0}], "solution": [{"cells": [[0, 3], [0, 4]], "vals": [4, 1]}, {"cells": [[1, 0], [1, 1]], "vals": [3, 1]}, {"cells": [[1, 3], [2, 3]], "vals": [5, 0]}, {"cells": [[2, 1], [2, 2]], "vals": [2, 2]}, {"cells": [[2, 4], [3, 4]], "vals": [5, 5]}, {"cells": [[3, 2], [3, 3]], "vals": [4, 4]}]}, {"w": 4, "h": 4, "cells": [[0, 0], [0, 1], [0, 2], [0, 3], [1, 1], [1, 2], [1, 3], [2, 1], [2, 2], [2, 3], [3, 2], [3, 3]], "dominoes": [[4, 4], [4, 3], [5, 5], [5, 3], [6, 6], [3, 0]], "regions": [[[0, 1], [0, 2]], [[0, 3], [1, 3]], [[3, 3]], [[0, 0]], [[2, 1]], [[1, 2], [2, 2], [3, 2]], [[2, 3]], [[1, 1]]], "conditions": [{"t": "sum", "v": 8}, {"t": "lt", "v": 6}, {"t": "sum", "v": 0}, {"t": "lt", "v": 5}, {"t": "sum", "v": 3}, {"t": "sum", "v": 12}, {"t": "gt", "v": 5}, {"t": "sum", "v": 5}], "solution": [{"cells": [[0, 0], [0, 1]], "vals": [4, 4]}, {"cells": [[0, 2], [1, 2]], "vals": [4, 3]}, {"cells": [[0, 3], [1, 3]], "vals": [5, 5]}, {"cells": [[1, 1], [2, 1]], "vals": [5, 3]}, {"cells": [[2, 2], [2, 3]], "vals": [6, 6]}, {"cells": [[3, 2], [3, 3]], "vals": [3, 0]}]}, {"w": 5, "h": 4, "cells": [[0, 2], [0, 3], [1, 0], [1, 1], [1, 2], [1, 3], [1, 4], [2, 0], [2, 1], [2, 2], [2, 3], [3, 3]], "dominoes": [[5, 5], [3, 3], [1, 1], [5, 2], [6, 2], [3, 2]], "regions": [[[0, 3], [1, 3]], [[0, 2], [1, 2], [2, 1], [2, 2]], [[1, 0], [1, 1]], [[2, 0]], [[3, 3]], [[2, 3]], [[1, 4]]], "conditions": [{"t": "sum", "v": 10}, {"t": "sum", "v": 9}, {"t": "eq"}, {"t": "sum", "v": 6}, {"t": "sum", "v": 2}, {"t": "gt", "v": 2}, {"t": "sum", "v": 2}], "solution": [{"cells": [[0, 2], [0, 3]], "vals": [5, 5]}, {"cells": [[1, 0], [1, 1]], "vals": [3, 3]}, {"cells": [[1, 2], [2, 2]], "vals": [1, 1]}, {"cells": [[1, 3], [1, 4]], "vals": [5, 2]}, {"cells": [[2, 0], [2, 1]], "vals": [6, 2]}, {"cells": [[2, 3], [3, 3]], "vals": [3, 2]}]}, {"w": 5, "h": 4, "cells": [[0, 1], [0, 2], [1, 0], [1, 1], [1, 2], [1, 3], [2, 1], [2, 2], [2, 3], [2, 4], [3, 0], [3, 1]], "dominoes": [[6, 6], [1, 2], [0, 0], [1, 5], [4, 4], [5, 3]], "regions": [[[1, 2], [1, 3]], [[0, 1], [0, 2], [1, 1]], [[2, 2], [2, 3]], [[3, 0]], [[2, 4]], [[3, 1]], [[1, 0]], [[2, 1]]], "conditions": [{"t": "eq"}, {"t": "sum", "v": 14}, {"t": "sum", "v": 9}, {"t": "sum", "v": 5}, {"t": "gt", "v": 3}, {"t": "lt", "v": 4}, {"t": "sum", "v": 1}, {"t": "lt", "v": 2}], "solution": [{"cells": [[0, 1], [0, 2]], "vals": [6, 6]}, {"cells": [[1, 0], [1, 1]], "vals": [1, 2]}, {"cells": [[1, 2], [1, 3]], "vals": [0, 0]}, {"cells": [[2, 1], [2, 2]], "vals": [1, 5]}, {"cells": [[2, 3], [2, 4]], "vals": [4, 4]}, {"cells": [[3, 0], [3, 1]], "vals": [5, 3]}]}, {"w": 5, "h": 3, "cells": [[0, 0], [0, 1], [0, 2], [0, 3], [0, 4], [1, 0], [1, 1], [1, 2], [1, 3], [1, 4], [2, 3], [2, 4]], "dominoes": [[6, 1], [0, 4], [6, 6], [3, 3], [4, 3], [2, 0]], "regions": [[[0, 4], [1, 4]], [[1, 3], [2, 3]], [[1, 1]], [[0, 2]], [[0, 1]], [[0, 0], [1, 0]], [[2, 4]], [[1, 2]], [[0, 3]]], "conditions": [{"t": "sum", "v": 12}, {"t": "sum", "v": 5}, {"t": "sum", "v": 3}, {"t": "sum", "v": 0}, {"t": "sum", "v": 1}, {"t": "sum", "v": 9}, {"t": "sum", "v": 0}, {"t": "sum", "v": 4}, {"t": "sum", "v": 4}], "solution": [{"cells": [[0, 0], [0, 1]], "vals": [6, 1]}, {"cells": [[0, 2], [0, 3]], "vals": [0, 4]}, {"cells": [[0, 4], [1, 4]], "vals": [6, 6]}, {"cells": [[1, 0], [1, 1]], "vals": [3, 3]}, {"cells": [[1, 2], [1, 3]], "vals": [4, 3]}, {"cells": [[2, 3], [2, 4]], "vals": [2, 0]}]}], "medium": [{"w": 5, "h": 5, "cells": [[0, 1], [0, 4], [1, 1], [1, 2], [1, 3], [1, 4], [2, 2], [2, 3], [2, 4], [3, 0], [3, 1], [3, 2], [3, 3], [3, 4], [4, 3], [4, 4]], "dominoes": [[2, 1], [1, 4], [0, 4], [5, 4], [3, 3], [2, 2], [1, 6], [6, 6]], "regions": [[[2, 3]], [[3, 3], [4, 3]], [[1, 1], [1, 2]], [[1, 4], [2, 4], [3, 4], [4, 4]], [[2, 2], [3, 2]], [[0, 4]], [[0, 1]], [[3, 0], [3, 1]], [[1, 3]]], "conditions": [{"t": "sum", "v": 4}, {"t": "eq"}, {"t": "neq"}, {"t": "sum", "v": 16}, {"t": "sum", "v": 5}, {"t": "sum", "v": 1}, {"t": "sum", "v": 2}, {"t": "sum", "v": 4}, {"t": "sum", "v": 5}], "solution": [{"cells": [[0, 1], [1, 1]], "vals": [2, 1]}, {"cells": [[0, 4], [1, 4]], "vals": [1, 4]}, {"cells": [[1, 2], [2, 2]], "vals": [0, 4]}, {"cells": [[1, 3], [2, 3]], "vals": [5, 4]}, {"cells": [[2, 4], [3, 4]], "vals": [3, 3]}, {"cells": [[3, 0], [3, 1]], "vals": [2, 2]}, {"cells": [[3, 2], [3, 3]], "vals": [1, 6]}, {"cells": [[4, 3], [4, 4]], "vals": [6, 6]}]}, {"w": 5, "h": 5, "cells": [[0, 0], [0, 1], [0, 2], [1, 0], [1, 1], [1, 2], [1, 3], [1, 4], [2, 0], [2, 1], [2, 2], [2, 3], [3, 0], [3, 1], [4, 0], [4, 1]], "dominoes": [[1, 6], [6, 0], [1, 3], [2, 3], [5, 5], [2, 6], [4, 2], [1, 3]], "regions": [[[1, 1]], [[0, 0], [1, 0]], [[3, 0], [4, 0]], [[1, 2], [1, 3], [1, 4], [2, 3]], [[2, 0]], [[2, 1], [2, 2]], [[0, 2]], [[4, 1]], [[3, 1]], [[0, 1]]], "conditions": [{"t": "sum", "v": 2}, {"t": "eq"}, {"t": "lt", "v": 5}, {"t": "sum", "v": 16}, {"t": "sum", "v": 3}, {"t": "sum", "v": 5}, {"t": "gt", "v": 5}, {"t": "sum", "v": 3}, {"t": "sum", "v": 2}, {"t": "sum", "v": 6}], "solution": [{"cells": [[0, 0], [0, 1]], "vals": [1, 6]}, {"cells": [[0, 2], [1, 2]], "vals": [6, 0]}, {"cells": [[1, 0], [2, 0]], "vals": [1, 3]}, {"cells": [[1, 1], [2, 1]], "vals": [2, 3]}, {"cells": [[1, 3], [1, 4]], "vals": [5, 5]}, {"cells": [[2, 2], [2, 3]], "vals": [2, 6]}, {"cells": [[3, 0], [3, 1]], "vals": [4, 2]}, {"cells": [[4, 0], [4, 1]], "vals": [1, 3]}]}, {"w": 5, "h": 5, "cells": [[0, 0], [0, 4], [1, 0], [1, 1], [1, 3], [1, 4], [2, 0], [2, 1], [2, 2], [2, 3], [3, 0], [3, 1], [3, 2], [3, 3], [3, 4], [4, 1]], "dominoes": [[3, 3], [0, 0], [4, 0], [5, 5], [6, 6], [1, 2], [1, 4], [2, 6]], "regions": [[[0, 0], [1, 0], [1, 1]], [[1, 3], [2, 2], [2, 3]], [[4, 1]], [[2, 0], [2, 1]], [[3, 2], [3, 3]], [[0, 4], [1, 4]], [[3, 0]], [[3, 1]], [[3, 4]]], "conditions": [{"t": "sum", "v": 10}, {"t": "sum", "v": 11}, {"t": "sum", "v": 4}, {"t": "sum", "v": 6}, {"t": "sum", "v": 4}, {"t": "eq"}, {"t": "sum", "v": 6}, {"t": "sum", "v": 1}, {"t": "sum", "v": 6}], "solution": [{"cells": [[0, 0], [1, 0]], "vals": [3, 3]}, {"cells": [[0, 4], [1, 4]], "vals": [0, 0]}, {"cells": [[1, 1], [2, 1]], "vals": [4, 0]}, {"cells": [[1, 3], [2, 3]], "vals": [5, 5]}, {"cells": [[2, 0], [3, 0]], "vals": [6, 6]}, {"cells": [[2, 2], [3, 2]], "vals": [1, 2]}, {"cells": [[3, 1], [4, 1]], "vals": [1, 4]}, {"cells": [[3, 3], [3, 4]], "vals": [2, 6]}]}, {"w": 4, "h": 5, "cells": [[0, 0], [0, 1], [1, 0], [1, 1], [1, 2], [2, 0], [2, 1], [2, 2], [3, 0], [3, 1], [3, 2], [3, 3], [4, 0], [4, 1], [4, 2], [4, 3]], "dominoes": [[3, 3], [5, 1], [1, 6], [2, 2], [0, 6], [6, 2], [4, 4], [5, 5]], "regions": [[[2, 2], [3, 1], [3, 2], [4, 2]], [[1, 1], [2, 1]], [[1, 2]], [[3, 0], [4, 0], [4, 1]], [[4, 3]], [[0, 0], [0, 1]], [[3, 3]], [[2, 0]], [[1, 0]]], "conditions": [{"t": "sum", "v": 23}, {"t": "lt", "v": 2}, {"t": "sum", "v": 1}, {"t": "sum", "v": 10}, {"t": "sum", "v": 5}, {"t": "sum", "v": 6}, {"t": "sum", "v": 2}, {"t": "gt", "v": 1}, {"t": "sum", "v": 5}], "solution": [{"cells": [[0, 0], [0, 1]], "vals": [3, 3]}, {"cells": [[1, 0], [1, 1]], "vals": [5, 1]}, {"cells": [[1, 2], [2, 2]], "vals": [1, 6]}, {"cells": [[2, 0], [3, 0]], "vals": [2, 2]}, {"cells": [[2, 1], [3, 1]], "vals": [0, 6]}, {"cells": [[3, 2], [3, 3]], "vals": [6, 2]}, {"cells": [[4, 0], [4, 1]], "vals": [4, 4]}, {"cells": [[4, 2], [4, 3]], "vals": [5, 5]}]}, {"w": 4, "h": 5, "cells": [[0, 2], [0, 3], [1, 1], [1, 2], [1, 3], [2, 0], [2, 1], [2, 2], [2, 3], [3, 0], [3, 2], [3, 3], [4, 0], [4, 1], [4, 2], [4, 3]], "dominoes": [[2, 1], [0, 2], [4, 4], [3, 3], [3, 2], [5, 1], [1, 0], [6, 6]], "regions": [[[0, 2], [1, 2]], [[2, 1], [2, 2], [2, 3]], [[4, 0], [4, 1], [4, 2], [4, 3]], [[1, 3]], [[2, 0], [3, 0]], [[1, 1]], [[3, 3]], [[3, 2]], [[0, 3]]], "conditions": [{"t": "sum", "v": 4}, {"t": "sum", "v": 10}, {"t": "sum", "v": 13}, {"t": "sum", "v": 4}, {"t": "sum", "v": 8}, {"t": "lt", "v": 1}, {"t": "gt", "v": 0}, {"t": "sum", "v": 2}, {"t": "sum", "v": 1}], "solution": [{"cells": [[0, 2], [0, 3]], "vals": [2, 1]}, {"cells": [[1, 1], [1, 2]], "vals": [0, 2]}, {"cells": [[1, 3], [2, 3]], "vals": [4, 4]}, {"cells": [[2, 0], [2, 1]], "vals": [3, 3]}, {"cells": [[2, 2], [3, 2]], "vals": [3, 2]}, {"cells": [[3, 0], [4, 0]], "vals": [5, 1]}, {"cells": [[3, 3], [4, 3]], "vals": [1, 0]}, {"cells": [[4, 1], [4, 2]], "vals": [6, 6]}]}, {"w": 5, "h": 5, "cells": [[0, 2], [1, 2], [1, 3], [1, 4], [2, 0], [2, 1], [2, 2], [2, 3], [2, 4], [3, 0], [3, 1], [3, 2], [3, 4], [4, 2], [4, 3], [4, 4]], "dominoes": [[0, 0], [4, 3], [1, 5], [4, 4], [2, 5], [3, 6], [0, 6], [2, 2]], "regions": [[[2, 4], [3, 4]], [[0, 2], [1, 2], [1, 3], [1, 4]], [[4, 2], [4, 3], [4, 4]], [[2, 0]], [[2, 1]], [[3, 1], [3, 2]], [[3, 0]], [[2, 3]], [[2, 2]]], "conditions": [{"t": "sum", "v": 5}, {"t": "sum", "v": 5}, {"t": "sum", "v": 10}, {"t": "sum", "v": 4}, {"t": "sum", "v": 4}, {"t": "neq"}, {"t": "sum", "v": 3}, {"t": "sum", "v": 3}, {"t": "sum", "v": 2}], "solution": [{"cells": [[0, 2], [1, 2]], "vals": [0, 0]}, {"cells": [[1, 3], [2, 3]], "vals": [4, 3]}, {"cells": [[1, 4], [2, 4]], "vals": [1, 5]}, {"cells": [[2, 0], [2, 1]], "vals": [4, 4]}, {"cells": [[2, 2], [3, 2]], "vals": [2, 5]}, {"cells": [[3, 0], [3, 1]], "vals": [3, 6]}, {"cells": [[3, 4], [4, 4]], "vals": [0, 6]}, {"cells": [[4, 2], [4, 3]], "vals": [2, 2]}]}, {"w": 5, "h": 5, "cells": [[0, 2], [0, 3], [0, 4], [1, 2], [1, 3], [1, 4], [2, 3], [2, 4], [3, 2], [3, 3], [3, 4], [4, 0], [4, 1], [4, 2], [4, 3], [4, 4]], "dominoes": [[6, 5], [4, 1], [3, 5], [2, 6], [1, 3], [4, 4], [2, 1], [0, 3]], "regions": [[[4, 1], [4, 2]], [[1, 4], [2, 4]], [[2, 3], [3, 3], [4, 3]], [[1, 2], [1, 3]], [[3, 4], [4, 4]], [[0, 3]], [[4, 0]], [[0, 2]], [[0, 4]], [[3, 2]]], "conditions": [{"t": "sum", "v": 1}, {"t": "neq"}, {"t": "sum", "v": 8}, {"t": "sum", "v": 6}, {"t": "sum", "v": 8}, {"t": "sum", "v": 4}, {"t": "lt", "v": 3}, {"t": "sum", "v": 6}, {"t": "sum", "v": 3}, {"t": "lt", "v": 2}], "solution": [{"cells": [[0, 2], [1, 2]], "vals": [6, 5]}, {"cells": [[0, 3], [1, 3]], "vals": [4, 1]}, {"cells": [[0, 4], [1, 4]], "vals": [3, 5]}, {"cells": [[2, 3], [2, 4]], "vals": [2, 6]}, {"cells": [[3, 2], [3, 3]], "vals": [1, 3]}, {"cells": [[3, 4], [4, 4]], "vals": [4, 4]}, {"cells": [[4, 0], [4, 1]], "vals": [2, 1]}, {"cells": [[4, 2], [4, 3]], "vals": [0, 3]}]}, {"w": 5, "h": 5, "cells": [[0, 4], [1, 2], [1, 4], [2, 0], [2, 1], [2, 2], [2, 3], [2, 4], [3, 0], [3, 1], [3, 2], [3, 3], [3, 4], [4, 2], [4, 3], [4, 4]], "dominoes": [[6, 6], [3, 6], [2, 2], [5, 5], [4, 3], [1, 4], [3, 2], [0, 0]], "regions": [[[4, 2], [4, 3], [4, 4]], [[3, 0], [3, 1], [3, 2]], [[3, 3]], [[2, 4], [3, 4]], [[0, 4], [1, 4]], [[2, 1], [2, 2]], [[2, 3]], [[1, 2]], [[2, 0]]], "conditions": [{"t": "lt", "v": 3}, {"t": "gt", "v": 0}, {"t": "sum", "v": 4}, {"t": "sum", "v": 6}, {"t": "sum", "v": 12}, {"t": "sum", "v": 11}, {"t": "sum", "v": 4}, {"t": "sum", "v": 3}, {"t": "sum", "v": 2}], "solution": [{"cells": [[0, 4], [1, 4]], "vals": [6, 6]}, {"cells": [[1, 2], [2, 2]], "vals": [3, 6]}, {"cells": [[2, 0], [3, 0]], "vals": [2, 2]}, {"cells": [[2, 1], [3, 1]], "vals": [5, 5]}, {"cells": [[2, 3], [2, 4]], "vals": [4, 3]}, {"cells": [[3, 2], [3, 3]], "vals": [1, 4]}, {"cells": [[3, 4], [4, 4]], "vals": [3, 2]}, {"cells": [[4, 2], [4, 3]], "vals": [0, 0]}]}, {"w": 5, "h": 5, "cells": [[0, 3], [0, 4], [1, 1], [1, 2], [1, 3], [1, 4], [2, 0], [2, 1], [2, 2], [2, 3], [2, 4], [3, 0], [3, 1], [3, 2], [4, 0], [4, 1]], "dominoes": [[6, 6], [0, 0], [3, 5], [2, 2], [5, 5], [3, 0], [1, 2], [4, 6]], "regions": [[[1, 4], [2, 3], [2, 4]], [[1, 2], [2, 2], [3, 2]], [[3, 0], [3, 1]], [[0, 3], [0, 4]], [[2, 0]], [[4, 0]], [[1, 1], [2, 1]], [[1, 3]], [[4, 1]]], "conditions": [{"t": "sum", "v": 4}, {"t": "sum", "v": 8}, {"t": "gt", "v": 0}, {"t": "gt", "v": 5}, {"t": "sum", "v": 5}, {"t": "sum", "v": 4}, {"t": "eq"}, {"t": "sum", "v": 5}, {"t": "sum", "v": 6}], "solution": [{"cells": [[0, 3], [0, 4]], "vals": [6, 6]}, {"cells": [[1, 1], [2, 1]], "vals": [0, 0]}, {"cells": [[1, 2], [1, 3]], "vals": [3, 5]}, {"cells": [[1, 4], [2, 4]], "vals": [2, 2]}, {"cells": [[2, 0], [3, 0]], "vals": [5, 5]}, {"cells": [[2, 2], [2, 3]], "vals": [3, 0]}, {"cells": [[3, 1], [3, 2]], "vals": [1, 2]}, {"cells": [[4, 0], [4, 1]], "vals": [4, 6]}]}, {"w": 5, "h": 5, "cells": [[0, 0], [0, 1], [0, 2], [0, 3], [1, 2], [1, 3], [1, 4], [2, 0], [2, 1], [2, 2], [3, 0], [3, 1], [3, 2], [4, 0], [4, 2], [4, 3]], "dominoes": [[5, 5], [0, 0], [2, 3], [1, 1], [5, 2], [6, 4], [0, 6], [1, 3]], "regions": [[[0, 2], [0, 3], [1, 3]], [[2, 0], [3, 0], [3, 1]], [[0, 0], [0, 1]], [[4, 0]], [[2, 2], [3, 2], [4, 2]], [[1, 4]], [[1, 2]], [[4, 3]], [[2, 1]]], "conditions": [{"t": "sum", "v": 1}, {"t": "sum", "v": 11}, {"t": "eq"}, {"t": "sum", "v": 4}, {"t": "neq"}, {"t": "sum", "v": 1}, {"t": "sum", "v": 2}, {"t": "sum", "v": 3}, {"t": "sum", "v": 2}], "solution": [{"cells": [[0, 0], [0, 1]], "vals": [5, 5]}, {"cells": [[0, 2], [0, 3]], "vals": [0, 0]}, {"cells": [[1, 2], [2, 2]], "vals": [2, 3]}, {"cells": [[1, 3], [1, 4]], "vals": [1, 1]}, {"cells": [[2, 0], [2, 1]], "vals": [5, 2]}, {"cells": [[3, 0], [4, 0]], "vals": [6, 4]}, {"cells": [[3, 1], [3, 2]], "vals": [0, 6]}, {"cells": [[4, 2], [4, 3]], "vals": [1, 3]}]}, {"w": 5, "h": 5, "cells": [[0, 1], [0, 2], [0, 3], [1, 2], [1, 3], [2, 0], [2, 1], [2, 2], [3, 0], [3, 1], [3, 2], [3, 3], [4, 1], [4, 2], [4, 3], [4, 4]], "dominoes": [[0, 6], [2, 1], [3, 5], [2, 4], [3, 4], [3, 2], [6, 6], [1, 1]], "regions": [[[3, 3]], [[0, 2], [0, 3]], [[4, 2]], [[3, 0], [3, 1], [4, 1]], [[4, 3], [4, 4]], [[2, 1], [2, 2]], [[0, 1]], [[1, 2], [1, 3]], [[2, 0]], [[3, 2]]], "conditions": [{"t": "sum", "v": 2}, {"t": "sum", "v": 8}, {"t": "sum", "v": 6}, {"t": "sum", "v": 14}, {"t": "eq"}, {"t": "neq"}, {"t": "sum", "v": 0}, {"t": "sum", "v": 4}, {"t": "sum", "v": 2}, {"t": "sum", "v": 3}], "solution": [{"cells": [[0, 1], [0, 2]], "vals": [0, 6]}, {"cells": [[0, 3], [1, 3]], "vals": [2, 1]}, {"cells": [[1, 2], [2, 2]], "vals": [3, 5]}, {"cells": [[2, 0], [3, 0]], "vals": [2, 4]}, {"cells": [[2, 1], [3, 1]], "vals": [3, 4]}, {"cells": [[3, 2], [3, 3]], "vals": [3, 2]}, {"cells": [[4, 1], [4, 2]], "vals": [6, 6]}, {"cells": [[4, 3], [4, 4]], "vals": [1, 1]}]}, {"w": 5, "h": 4, "cells": [[0, 0], [0, 2], [0, 3], [1, 0], [1, 1], [1, 2], [1, 3], [2, 1], [2, 2], [2, 3], [2, 4], [3, 0], [3, 1], [3, 2], [3, 3], [3, 4]], "dominoes": [[6, 1], [4, 4], [6, 2], [5, 5], [3, 2], [2, 4], [3, 0], [0, 0]], "regions": [[[2, 2], [2, 3], [2, 4]], [[1, 0], [1, 1], [1, 2]], [[2, 1], [3, 1], [3, 2]], [[0, 2]], [[3, 0]], [[0, 0]], [[3, 3], [3, 4]], [[0, 3]], [[1, 3]]], "conditions": [{"t": "sum", "v": 9}, {"t": "neq"}, {"t": "sum", "v": 2}, {"t": "sum", "v": 4}, {"t": "sum", "v": 3}, {"t": "sum", "v": 6}, {"t": "lt", "v": 5}, {"t": "sum", "v": 4}, {"t": "sum", "v": 3}], "solution": [{"cells": [[0, 0], [1, 0]], "vals": [6, 1]}, {"cells": [[0, 2], [0, 3]], "vals": [4, 4]}, {"cells": [[1, 1], [2, 1]], "vals": [6, 2]}, {"cells": [[1, 2], [2, 2]], "vals": [5, 5]}, {"cells": [[1, 3], [2, 3]], "vals": [3, 2]}, {"cells": [[2, 4], [3, 4]], "vals": [2, 4]}, {"cells": [[3, 0], [3, 1]], "vals": [3, 0]}, {"cells": [[3, 2], [3, 3]], "vals": [0, 0]}]}, {"w": 5, "h": 5, "cells": [[0, 1], [0, 2], [0, 3], [0, 4], [1, 0], [1, 1], [1, 2], [2, 0], [2, 1], [2, 2], [3, 0], [3, 1], [3, 2], [3, 3], [3, 4], [4, 2]], "dominoes": [[6, 4], [2, 3], [1, 1], [4, 1], [0, 3], [5, 5], [2, 0], [6, 3]], "regions": [[[1, 2], [2, 2]], [[3, 4]], [[3, 0], [3, 1], [3, 2]], [[0, 1], [0, 2]], [[2, 0], [2, 1]], [[1, 0], [1, 1]], [[4, 2]], [[0, 4]], [[0, 3]], [[3, 3]]], "conditions": [{"t": "sum", "v": 6}, {"t": "sum", "v": 3}, {"t": "free"}, {"t": "sum", "v": 8}, {"t": "lt", "v": 2}, {"t": "gt", "v": 3}, {"t": "lt", "v": 1}, {"t": "sum", "v": 1}, {"t": "sum", "v": 1}, {"t": "gt", "v": 5}], "solution": [{"cells": [[0, 1], [1, 1]], "vals": [6, 4]}, {"cells": [[0, 2], [1, 2]], "vals": [2, 3]}, {"cells": [[0, 3], [0, 4]], "vals": [1, 1]}, {"cells": [[1, 0], [2, 0]], "vals": [4, 1]}, {"cells": [[2, 1], [2, 2]], "vals": [0, 3]}, {"cells": [[3, 0], [3, 1]], "vals": [5, 5]}, {"cells": [[3, 2], [4, 2]], "vals": [2, 0]}, {"cells": [[3, 3], [3, 4]], "vals": [6, 3]}]}, {"w": 5, "h": 4, "cells": [[0, 0], [0, 2], [0, 3], [1, 0], [1, 1], [1, 2], [1, 3], [1, 4], [2, 0], [2, 1], [2, 2], [2, 3], [2, 4], [3, 0], [3, 1], [3, 2]], "dominoes": [[3, 0], [4, 4], [1, 0], [6, 1], [3, 5], [4, 5], [2, 5], [6, 6]], "regions": [[[0, 2], [1, 1], [1, 2]], [[3, 0], [3, 1], [3, 2]], [[1, 0], [2, 0]], [[1, 3]], [[2, 3], [2, 4]], [[2, 2]], [[0, 0]], [[2, 1]], [[1, 4]], [[0, 3]]], "conditions": [{"t": "sum", "v": 14}, {"t": "sum", "v": 17}, {"t": "lt", "v": 5}, {"t": "sum", "v": 0}, {"t": "lt", "v": 6}, {"t": "sum", "v": 2}, {"t": "sum", "v": 3}, {"t": "sum", "v": 1}, {"t": "sum", "v": 3}, {"t": "sum", "v": 1}], "solution": [{"cells": [[0, 0], [1, 0]], "vals": [3, 0]}, {"cells": [[0, 2], [1, 2]], "vals": [4, 4]}, {"cells": [[0, 3], [1, 3]], "vals": [1, 0]}, {"cells": [[1, 1], [2, 1]], "vals": [6, 1]}, {"cells": [[1, 4], [2, 4]], "vals": [3, 5]}, {"cells": [[2, 0], [3, 0]], "vals": [4, 5]}, {"cells": [[2, 2], [2, 3]], "vals": [2, 5]}, {"cells": [[3, 1], [3, 2]], "vals": [6, 6]}]}, {"w": 5, "h": 5, "cells": [[0, 0], [0, 1], [0, 2], [0, 3], [0, 4], [1, 1], [1, 2], [1, 3], [1, 4], [2, 1], [2, 2], [2, 3], [2, 4], [3, 2], [3, 4], [4, 4]], "dominoes": [[0, 2], [3, 6], [1, 1], [3, 0], [1, 4], [6, 6], [5, 5], [4, 4]], "regions": [[[2, 1], [2, 2], [2, 3], [3, 2]], [[1, 4]], [[2, 4], [3, 4], [4, 4]], [[0, 3], [1, 3]], [[1, 1], [1, 2]], [[0, 4]], [[0, 0]], [[0, 2]], [[0, 1]]], "conditions": [{"t": "sum", "v": 14}, {"t": "sum", "v": 6}, {"t": "sum", "v": 14}, {"t": "sum", "v": 2}, {"t": "sum", "v": 9}, {"t": "sum", "v": 1}, {"t": "sum", "v": 0}, {"t": "sum", "v": 3}, {"t": "sum", "v": 2}], "solution": [{"cells": [[0, 0], [0, 1]], "vals": [0, 2]}, {"cells": [[0, 2], [1, 2]], "vals": [3, 6]}, {"cells": [[0, 3], [0, 4]], "vals": [1, 1]}, {"cells": [[1, 1], [2, 1]], "vals": [3, 0]}, {"cells": [[1, 3], [2, 3]], "vals": [1, 4]}, {"cells": [[1, 4], [2, 4]], "vals": [6, 6]}, {"cells": [[2, 2], [3, 2]], "vals": [5, 5]}, {"cells": [[3, 4], [4, 4]], "vals": [4, 4]}]}, {"w": 4, "h": 5, "cells": [[0, 2], [0, 3], [1, 1], [1, 2], [2, 0], [2, 1], [2, 2], [2, 3], [3, 0], [3, 1], [3, 2], [3, 3], [4, 0], [4, 1], [4, 2], [4, 3]], "dominoes": [[6, 5], [2, 1], [4, 4], [2, 6], [3, 3], [5, 4], [5, 3], [0, 0]], "regions": [[[3, 2], [3, 3], [4, 2], [4, 3]], [[2, 0], [2, 1], [3, 1]], [[1, 2]], [[0, 2]], [[2, 2], [2, 3]], [[3, 0], [4, 0]], [[4, 1]], [[1, 1]], [[0, 3]]], "conditions": [{"t": "sum", "v": 7}, {"t": "sum", "v": 8}, {"t": "sum", "v": 4}, {"t": "sum", "v": 6}, {"t": "sum", "v": 7}, {"t": "neq"}, {"t": "sum", "v": 3}, {"t": "lt", "v": 3}, {"t": "sum", "v": 5}], "solution": [{"cells": [[0, 2], [0, 3]], "vals": [6, 5]}, {"cells": [[1, 1], [2, 1]], "vals": [2, 1]}, {"cells": [[1, 2], [2, 2]], "vals": [4, 4]}, {"cells": [[2, 0], [3, 0]], "vals": [2, 6]}, {"cells": [[2, 3], [3, 3]], "vals": [3, 3]}, {"cells": [[3, 1], [3, 2]], "vals": [5, 4]}, {"cells": [[4, 0], [4, 1]], "vals": [5, 3]}, {"cells": [[4, 2], [4, 3]], "vals": [0, 0]}]}, {"w": 4, "h": 5, "cells": [[0, 0], [0, 1], [0, 2], [0, 3], [1, 0], [1, 1], [1, 2], [1, 3], [2, 0], [2, 1], [2, 2], [3, 0], [3, 1], [3, 2], [4, 0], [4, 1]], "dominoes": [[4, 5], [2, 0], [4, 4], [0, 0], [3, 5], [3, 1], [2, 1], [3, 2]], "regions": [[[0, 1]], [[0, 3], [1, 3]], [[1, 1], [1, 2], [2, 1], [2, 2]], [[1, 0], [2, 0], [3, 0]], [[4, 1]], [[0, 2]], [[4, 0]], [[3, 1], [3, 2]], [[0, 0]]], "conditions": [{"t": "sum", "v": 5}, {"t": "neq"}, {"t": "sum", "v": 6}, {"t": "sum", "v": 10}, {"t": "sum", "v": 2}, {"t": "sum", "v": 2}, {"t": "sum", "v": 3}, {"t": "sum", "v": 2}, {"t": "sum", "v": 4}], "solution": [{"cells": [[0, 0], [0, 1]], "vals": [4, 5]}, {"cells": [[0, 2], [0, 3]], "vals": [2, 0]}, {"cells": [[1, 0], [2, 0]], "vals": [4, 4]}, {"cells": [[1, 1], [2, 1]], "vals": [0, 0]}, {"cells": [[1, 2], [1, 3]], "vals": [3, 5]}, {"cells": [[2, 2], [3, 2]], "vals": [3, 1]}, {"cells": [[3, 0], [3, 1]], "vals": [2, 1]}, {"cells": [[4, 0], [4, 1]], "vals": [3, 2]}]}, {"w": 5, "h": 5, "cells": [[0, 2], [0, 3], [1, 2], [1, 3], [1, 4], [2, 0], [2, 1], [2, 2], [2, 4], [3, 2], [3, 3], [3, 4], [4, 1], [4, 2], [4, 3], [4, 4]], "dominoes": [[1, 4], [3, 3], [5, 6], [4, 4], [1, 5], [2, 2], [6, 6], [2, 0]], "regions": [[[1, 3]], [[2, 0], [2, 1]], [[2, 4], [3, 4]], [[3, 2], [3, 3], [4, 3]], [[1, 2], [2, 2]], [[4, 1], [4, 2]], [[4, 4]], [[0, 3]], [[0, 2]], [[1, 4]]], "conditions": [{"t": "sum", "v": 3}, {"t": "lt", "v": 5}, {"t": "gt", "v": 1}, {"t": "sum", "v": 9}, {"t": "sum", "v": 5}, {"t": "eq"}, {"t": "sum", "v": 0}, {"t": "sum", "v": 3}, {"t": "sum", "v": 1}, {"t": "sum", "v": 5}], "solution": [{"cells": [[0, 2], [1, 2]], "vals": [1, 4]}, {"cells": [[0, 3], [1, 3]], "vals": [3, 3]}, {"cells": [[1, 4], [2, 4]], "vals": [5, 6]}, {"cells": [[2, 0], [2, 1]], "vals": [4, 4]}, {"cells": [[2, 2], [3, 2]], "vals": [1, 5]}, {"cells": [[3, 3], [3, 4]], "vals": [2, 2]}, {"cells": [[4, 1], [4, 2]], "vals": [6, 6]}, {"cells": [[4, 3], [4, 4]], "vals": [2, 0]}]}, {"w": 5, "h": 5, "cells": [[0, 0], [0, 1], [0, 2], [1, 0], [1, 1], [1, 2], [1, 3], [2, 0], [2, 1], [2, 2], [3, 0], [3, 1], [3, 2], [3, 3], [3, 4], [4, 1]], "dominoes": [[0, 0], [0, 5], [6, 6], [2, 3], [4, 4], [1, 5], [5, 4], [6, 3]], "regions": [[[3, 2], [3, 3]], [[0, 2], [1, 2], [2, 2]], [[0, 0], [0, 1], [1, 0]], [[2, 1], [3, 1]], [[1, 1]], [[3, 4]], [[4, 1]], [[2, 0], [3, 0]], [[1, 3]]], "conditions": [{"t": "sum", "v": 11}, {"t": "sum", "v": 8}, {"t": "sum", "v": 0}, {"t": "gt", "v": 4}, {"t": "gt", "v": 5}, {"t": "sum", "v": 3}, {"t": "gt", "v": 3}, {"t": "sum", "v": 8}, {"t": "gt", "v": 2}], "solution": [{"cells": [[0, 0], [1, 0]], "vals": [0, 0]}, {"cells": [[0, 1], [0, 2]], "vals": [0, 5]}, {"cells": [[1, 1], [2, 1]], "vals": [6, 6]}, {"cells": [[1, 2], [1, 3]], "vals": [2, 3]}, {"cells": [[2, 0], [3, 0]], "vals": [4, 4]}, {"cells": [[2, 2], [3, 2]], "vals": [1, 5]}, {"cells": [[3, 1], [4, 1]], "vals": [5, 4]}, {"cells": [[3, 3], [3, 4]], "vals": [6, 3]}]}, {"w": 4, "h": 5, "cells": [[0, 0], [0, 1], [0, 2], [0, 3], [1, 0], [1, 1], [1, 2], [1, 3], [2, 0], [2, 1], [2, 2], [2, 3], [3, 2], [3, 3], [4, 2], [4, 3]], "dominoes": [[0, 0], [1, 0], [2, 1], [4, 6], [2, 3], [3, 4], [3, 4], [5, 6]], "regions": [[[2, 1], [2, 2], [3, 2], [4, 2]], [[0, 0], [1, 0], [1, 1]], [[2, 3], [3, 3]], [[0, 3]], [[0, 1]], [[2, 0]], [[1, 2], [1, 3]], [[0, 2]], [[4, 3]]], "conditions": [{"t": "sum", "v": 14}, {"t": "sum", "v": 4}, {"t": "eq"}, {"t": "sum", "v": 2}, {"t": "sum", "v": 1}, {"t": "sum", "v": 2}, {"t": "sum", "v": 7}, {"t": "lt", "v": 1}, {"t": "sum", "v": 6}], "solution": [{"cells": [[0, 0], [1, 0]], "vals": [0, 0]}, {"cells": [[0, 1], [0, 2]], "vals": [1, 0]}, {"cells": [[0, 3], [1, 3]], "vals": [2, 1]}, {"cells": [[1, 1], [1, 2]], "vals": [4, 6]}, {"cells": [[2, 0], [2, 1]], "vals": [2, 3]}, {"cells": [[2, 2], [2, 3]], "vals": [3, 4]}, {"cells": [[3, 2], [3, 3]], "vals": [3, 4]}, {"cells": [[4, 2], [4, 3]], "vals": [5, 6]}]}], "hard": [{"w": 5, "h": 5, "cells": [[0, 2], [0, 3], [0, 4], [1, 0], [1, 2], [1, 3], [1, 4], [2, 0], [2, 1], [2, 2], [2, 3], [2, 4], [3, 0], [3, 1], [3, 2], [3, 3], [3, 4], [4, 0], [4, 1], [4, 4]], "dominoes": [[6, 6], [4, 0], [0, 0], [0, 1], [3, 3], [5, 4], [2, 4], [1, 4], [1, 6], [6, 2]], "regions": [[[1, 4], [2, 4], [3, 4]], [[3, 1], [3, 2]], [[1, 0], [2, 0], [3, 0]], [[2, 3], [3, 3]], [[2, 1], [2, 2]], [[4, 4]], [[1, 2], [1, 3]], [[4, 0], [4, 1]], [[0, 3]], [[0, 2]], [[0, 4]]], "conditions": [{"t": "sum", "v": 11}, {"t": "sum", "v": 2}, {"t": "sum", "v": 2}, {"t": "free"}, {"t": "sum", "v": 6}, {"t": "sum", "v": 2}, {"t": "sum", "v": 6}, {"t": "sum", "v": 8}, {"t": "sum", "v": 4}, {"t": "sum", "v": 6}, {"t": "sum", "v": 0}], "solution": [{"cells": [[0, 2], [1, 2]], "vals": [6, 6]}, {"cells": [[0, 3], [0, 4]], "vals": [4, 0]}, {"cells": [[1, 0], [2, 0]], "vals": [0, 0]}, {"cells": [[1, 3], [1, 4]], "vals": [0, 1]}, {"cells": [[2, 1], [2, 2]], "vals": [3, 3]}, {"cells": [[2, 3], [2, 4]], "vals": [5, 4]}, {"cells": [[3, 0], [4, 0]], "vals": [2, 4]}, {"cells": [[3, 1], [4, 1]], "vals": [1, 4]}, {"cells": [[3, 2], [3, 3]], "vals": [1, 6]}, {"cells": [[3, 4], [4, 4]], "vals": [6, 2]}]}, {"w": 5, "h": 5, "cells": [[0, 1], [0, 2], [0, 3], [0, 4], [1, 0], [1, 1], [1, 2], [1, 3], [1, 4], [2, 1], [2, 2], [2, 3], [2, 4], [3, 1], [3, 2], [3, 3], [3, 4], [4, 2], [4, 3], [4, 4]], "dominoes": [[2, 0], [3, 6], [1, 3], [0, 3], [5, 5], [1, 1], [3, 5], [1, 2], [1, 2], [4, 6]], "regions": [[[4, 2]], [[2, 1], [2, 2]], [[3, 1]], [[0, 2], [0, 3], [1, 2]], [[0, 4], [1, 4], [2, 4], [3, 4]], [[0, 1]], [[1, 3], [2, 3]], [[1, 0]], [[3, 3], [4, 3], [4, 4]], [[3, 2]], [[1, 1]]], "conditions": [{"t": "sum", "v": 4}, {"t": "neq"}, {"t": "sum", "v": 1}, {"t": "sum", "v": 3}, {"t": "sum", "v": 17}, {"t": "sum", "v": 2}, {"t": "sum", "v": 4}, {"t": "sum", "v": 1}, {"t": "sum", "v": 10}, {"t": "sum", "v": 5}, {"t": "sum", "v": 3}], "solution": [{"cells": [[0, 1], [0, 2]], "vals": [2, 0]}, {"cells": [[0, 3], [0, 4]], "vals": [3, 6]}, {"cells": [[1, 0], [1, 1]], "vals": [1, 3]}, {"cells": [[1, 2], [1, 3]], "vals": [0, 3]}, {"cells": [[1, 4], [2, 4]], "vals": [5, 5]}, {"cells": [[2, 1], [3, 1]], "vals": [1, 1]}, {"cells": [[2, 2], [3, 2]], "vals": [3, 5]}, {"cells": [[2, 3], [3, 3]], "vals": [1, 2]}, {"cells": [[3, 4], [4, 4]], "vals": [1, 2]}, {"cells": [[4, 2], [4, 3]], "vals": [4, 6]}]}, {"w": 6, "h": 5, "cells": [[0, 0], [0, 1], [0, 2], [0, 3], [0, 4], [0, 5], [1, 1], [1, 2], [1, 5], [2, 0], [2, 1], [2, 2], [2, 3], [2, 4], [2, 5], [3, 0], [3, 1], [3, 4], [4, 1], [4, 4]], "dominoes": [[6, 1], [1, 1], [0, 0], [1, 0], [4, 4], [0, 2], [5, 5], [6, 0], [2, 3], [5, 6]], "regions": [[[2, 1], [3, 1]], [[2, 0], [3, 0]], [[0, 1], [0, 2], [0, 3]], [[1, 2]], [[0, 0]], [[2, 4], [2, 5]], [[4, 1]], [[2, 2], [2, 3]], [[4, 4]], [[1, 1]], [[0, 4], [0, 5], [1, 5]], [[3, 4]]], "conditions": [{"t": "sum", "v": 2}, {"t": "sum", "v": 10}, {"t": "eq"}, {"t": "sum", "v": 4}, {"t": "sum", "v": 6}, {"t": "neq"}, {"t": "sum", "v": 3}, {"t": "sum", "v": 10}, {"t": "sum", "v": 6}, {"t": "sum", "v": 1}, {"t": "eq"}, {"t": "sum", "v": 5}], "solution": [{"cells": [[0, 0], [0, 1]], "vals": [6, 1]}, {"cells": [[0, 2], [0, 3]], "vals": [1, 1]}, {"cells": [[0, 4], [0, 5]], "vals": [0, 0]}, {"cells": [[1, 1], [2, 1]], "vals": [1, 0]}, {"cells": [[1, 2], [2, 2]], "vals": [4, 4]}, {"cells": [[1, 5], [2, 5]], "vals": [0, 2]}, {"cells": [[2, 0], [3, 0]], "vals": [5, 5]}, {"cells": [[2, 3], [2, 4]], "vals": [6, 0]}, {"cells": [[3, 1], [4, 1]], "vals": [2, 3]}, {"cells": [[3, 4], [4, 4]], "vals": [5, 6]}]}, {"w": 6, "h": 5, "cells": [[0, 0], [0, 1], [0, 2], [0, 3], [1, 0], [1, 1], [1, 2], [1, 3], [1, 4], [2, 0], [2, 1], [2, 2], [2, 3], [2, 4], [2, 5], [3, 0], [3, 1], [3, 2], [3, 3], [4, 2]], "dominoes": [[1, 2], [4, 3], [0, 0], [6, 3], [6, 0], [0, 5], [6, 2], [1, 1], [0, 0], [5, 5]], "regions": [[[1, 4]], [[0, 0], [1, 0], [2, 0]], [[3, 0], [3, 1], [3, 2]], [[0, 3], [1, 3], [2, 3]], [[0, 1], [0, 2]], [[3, 3]], [[1, 2], [2, 2]], [[2, 1]], [[4, 2]], [[2, 4], [2, 5]], [[1, 1]]], "conditions": [{"t": "sum", "v": 0}, {"t": "lt", "v": 2}, {"t": "free"}, {"t": "gt", "v": 2}, {"t": "sum", "v": 6}, {"t": "sum", "v": 2}, {"t": "sum", "v": 8}, {"t": "sum", "v": 0}, {"t": "sum", "v": 5}, {"t": "sum", "v": 2}, {"t": "sum", "v": 6}], "solution": [{"cells": [[0, 0], [0, 1]], "vals": [1, 2]}, {"cells": [[0, 2], [0, 3]], "vals": [4, 3]}, {"cells": [[1, 0], [2, 0]], "vals": [0, 0]}, {"cells": [[1, 1], [1, 2]], "vals": [6, 3]}, {"cells": [[1, 3], [1, 4]], "vals": [6, 0]}, {"cells": [[2, 1], [2, 2]], "vals": [0, 5]}, {"cells": [[2, 3], [3, 3]], "vals": [6, 2]}, {"cells": [[2, 4], [2, 5]], "vals": [1, 1]}, {"cells": [[3, 0], [3, 1]], "vals": [0, 0]}, {"cells": [[3, 2], [4, 2]], "vals": [5, 5]}]}, {"w": 6, "h": 5, "cells": [[0, 1], [0, 2], [0, 4], [0, 5], [1, 1], [1, 2], [1, 3], [1, 4], [1, 5], [2, 0], [2, 1], [2, 2], [2, 3], [2, 4], [2, 5], [3, 2], [3, 3], [3, 4], [3, 5], [4, 3]], "dominoes": [[4, 4], [4, 6], [2, 4], [0, 0], [6, 5], [4, 5], [2, 2], [3, 3], [2, 3], [0, 2]], "regions": [[[1, 2]], [[2, 1], [2, 2]], [[3, 2], [3, 3]], [[0, 4], [1, 4]], [[0, 1], [0, 2]], [[0, 5], [1, 5]], [[3, 4]], [[1, 3], [2, 3]], [[2, 0]], [[4, 3]], [[2, 4], [2, 5], [3, 5]], [[1, 1]]], "conditions": [{"t": "sum", "v": 4}, {"t": "neq"}, {"t": "eq"}, {"t": "sum", "v": 4}, {"t": "sum", "v": 8}, {"t": "sum", "v": 12}, {"t": "sum", "v": 0}, {"t": "sum", "v": 3}, {"t": "sum", "v": 4}, {"t": "sum", "v": 3}, {"t": "lt", "v": 6}, {"t": "sum", "v": 2}], "solution": [{"cells": [[0, 1], [0, 2]], "vals": [4, 4]}, {"cells": [[0, 4], [0, 5]], "vals": [4, 6]}, {"cells": [[1, 1], [1, 2]], "vals": [2, 4]}, {"cells": [[1, 3], [1, 4]], "vals": [0, 0]}, {"cells": [[1, 5], [2, 5]], "vals": [6, 5]}, {"cells": [[2, 0], [2, 1]], "vals": [4, 5]}, {"cells": [[2, 2], [3, 2]], "vals": [2, 2]}, {"cells": [[2, 3], [2, 4]], "vals": [3, 3]}, {"cells": [[3, 3], [4, 3]], "vals": [2, 3]}, {"cells": [[3, 4], [3, 5]], "vals": [0, 2]}]}, {"w": 5, "h": 5, "cells": [[0, 0], [0, 1], [0, 2], [0, 3], [0, 4], [1, 0], [1, 1], [1, 2], [1, 3], [1, 4], [2, 0], [2, 1], [2, 2], [2, 3], [3, 1], [3, 2], [3, 3], [3, 4], [4, 1], [4, 2]], "dominoes": [[2, 2], [1, 1], [4, 0], [5, 2], [3, 1], [0, 6], [3, 0], [6, 4], [5, 5], [3, 4]], "regions": [[[3, 1]], [[0, 3], [1, 3], [1, 4]], [[2, 0], [2, 1]], [[3, 2], [4, 2]], [[3, 3], [3, 4]], [[1, 1]], [[0, 0], [0, 1], [0, 2]], [[0, 4]], [[1, 2], [2, 2], [2, 3]], [[1, 0]], [[4, 1]]], "conditions": [{"t": "sum", "v": 0}, {"t": "lt", "v": 2}, {"t": "sum", "v": 5}, {"t": "free"}, {"t": "gt", "v": 4}, {"t": "sum", "v": 3}, {"t": "sum", "v": 5}, {"t": "sum", "v": 4}, {"t": "sum", "v": 13}, {"t": "sum", "v": 5}, {"t": "sum", "v": 3}], "solution": [{"cells": [[0, 0], [0, 1]], "vals": [2, 2]}, {"cells": [[0, 2], [0, 3]], "vals": [1, 1]}, {"cells": [[0, 4], [1, 4]], "vals": [4, 0]}, {"cells": [[1, 0], [2, 0]], "vals": [5, 2]}, {"cells": [[1, 1], [1, 2]], "vals": [3, 1]}, {"cells": [[1, 3], [2, 3]], "vals": [0, 6]}, {"cells": [[2, 1], [3, 1]], "vals": [3, 0]}, {"cells": [[2, 2], [3, 2]], "vals": [6, 4]}, {"cells": [[3, 3], [3, 4]], "vals": [5, 5]}, {"cells": [[4, 1], [4, 2]], "vals": [3, 4]}]}, {"w": 5, "h": 5, "cells": [[0, 0], [0, 1], [0, 2], [1, 0], [1, 1], [1, 2], [2, 0], [2, 1], [2, 2], [2, 3], [2, 4], [3, 0], [3, 1], [3, 2], [3, 3], [3, 4], [4, 0], [4, 1], [4, 2], [4, 3]], "dominoes": [[5, 5], [0, 0], [4, 5], [5, 2], [3, 1], [4, 4], [6, 1], [0, 1], [0, 6], [1, 4]], "regions": [[[1, 1], [2, 0], [2, 1]], [[3, 0], [4, 0]], [[0, 1], [0, 2]], [[2, 3], [2, 4]], [[4, 1], [4, 2]], [[3, 2], [3, 3]], [[0, 0], [1, 0]], [[3, 1]], [[4, 3]], [[1, 2]], [[3, 4]], [[2, 2]]], "conditions": [{"t": "sum", "v": 12}, {"t": "sum", "v": 2}, {"t": "sum", "v": 0}, {"t": "eq"}, {"t": "neq"}, {"t": "sum", "v": 1}, {"t": "sum", "v": 10}, {"t": "sum", "v": 6}, {"t": "gt", "v": 3}, {"t": "sum", "v": 5}, {"t": "sum", "v": 1}, {"t": "sum", "v": 1}], "solution": [{"cells": [[0, 0], [1, 0]], "vals": [5, 5]}, {"cells": [[0, 1], [0, 2]], "vals": [0, 0]}, {"cells": [[1, 1], [1, 2]], "vals": [4, 5]}, {"cells": [[2, 0], [3, 0]], "vals": [5, 2]}, {"cells": [[2, 1], [2, 2]], "vals": [3, 1]}, {"cells": [[2, 3], [2, 4]], "vals": [4, 4]}, {"cells": [[3, 1], [3, 2]], "vals": [6, 1]}, {"cells": [[3, 3], [3, 4]], "vals": [0, 1]}, {"cells": [[4, 0], [4, 1]], "vals": [0, 6]}, {"cells": [[4, 2], [4, 3]], "vals": [1, 4]}]}, {"w": 6, "h": 5, "cells": [[0, 1], [0, 2], [1, 1], [1, 2], [2, 0], [2, 1], [2, 2], [2, 3], [2, 4], [2, 5], [3, 0], [3, 1], [3, 2], [3, 3], [4, 0], [4, 1], [4, 2], [4, 3], [4, 4], [4, 5]], "dominoes": [[0, 1], [1, 1], [4, 6], [3, 5], [5, 2], [0, 0], [1, 3], [6, 6], [3, 5], [1, 4]], "regions": [[[1, 1], [2, 1]], [[2, 2]], [[0, 2], [1, 2]], [[2, 3], [2, 4], [2, 5]], [[3, 1], [4, 1], [4, 2]], [[3, 0], [4, 0]], [[2, 0]], [[3, 3], [4, 3], [4, 4]], [[0, 1]], [[4, 5]], [[3, 2]]], "conditions": [{"t": "eq"}, {"t": "sum", "v": 6}, {"t": "sum", "v": 5}, {"t": "sum", "v": 5}, {"t": "sum", "v": 10}, {"t": "sum", "v": 11}, {"t": "sum", "v": 3}, {"t": "sum", "v": 8}, {"t": "sum", "v": 0}, {"t": "lt", "v": 5}, {"t": "lt", "v": 4}], "solution": [{"cells": [[0, 1], [0, 2]], "vals": [0, 1]}, {"cells": [[1, 1], [2, 1]], "vals": [1, 1]}, {"cells": [[1, 2], [2, 2]], "vals": [4, 6]}, {"cells": [[2, 0], [3, 0]], "vals": [3, 5]}, {"cells": [[2, 3], [3, 3]], "vals": [5, 2]}, {"cells": [[2, 4], [2, 5]], "vals": [0, 0]}, {"cells": [[3, 1], [3, 2]], "vals": [1, 3]}, {"cells": [[4, 0], [4, 1]], "vals": [6, 6]}, {"cells": [[4, 2], [4, 3]], "vals": [3, 5]}, {"cells": [[4, 4], [4, 5]], "vals": [1, 4]}]}, {"w": 6, "h": 5, "cells": [[0, 3], [1, 0], [1, 2], [1, 3], [2, 0], [2, 1], [2, 2], [2, 3], [2, 4], [2, 5], [3, 0], [3, 1], [3, 2], [3, 3], [3, 5], [4, 0], [4, 1], [4, 2], [4, 3], [4, 4]], "dominoes": [[3, 3], [4, 4], [0, 6], [6, 2], [6, 6], [0, 0], [1, 1], [1, 3], [1, 2], [1, 5]], "regions": [[[2, 1]], [[0, 3], [1, 3], [2, 3]], [[2, 2], [3, 1], [3, 2]], [[4, 4]], [[1, 0], [2, 0]], [[1, 2]], [[4, 2], [4, 3]], [[3, 3]], [[2, 4], [2, 5], [3, 5]], [[3, 0], [4, 0]], [[4, 1]]], "conditions": [{"t": "sum", "v": 6}, {"t": "gt", "v": 2}, {"t": "sum", "v": 9}, {"t": "sum", "v": 5}, {"t": "sum", "v": 8}, {"t": "sum", "v": 0}, {"t": "neq"}, {"t": "sum", "v": 3}, {"t": "sum", "v": 6}, {"t": "sum", "v": 2}, {"t": "sum", "v": 1}], "solution": [{"cells": [[0, 3], [1, 3]], "vals": [3, 3]}, {"cells": [[1, 0], [2, 0]], "vals": [4, 4]}, {"cells": [[1, 2], [2, 2]], "vals": [0, 6]}, {"cells": [[2, 1], [3, 1]], "vals": [6, 2]}, {"cells": [[2, 3], [2, 4]], "vals": [6, 6]}, {"cells": [[2, 5], [3, 5]], "vals": [0, 0]}, {"cells": [[3, 0], [4, 0]], "vals": [1, 1]}, {"cells": [[3, 2], [3, 3]], "vals": [1, 3]}, {"cells": [[4, 1], [4, 2]], "vals": [1, 2]}, {"cells": [[4, 3], [4, 4]], "vals": [1, 5]}]}, {"w": 6, "h": 5, "cells": [[0, 2], [1, 1], [1, 2], [1, 3], [1, 4], [2, 0], [2, 1], [2, 2], [2, 3], [2, 4], [2, 5], [3, 0], [3, 1], [3, 2], [3, 3], [3, 4], [3, 5], [4, 1], [4, 2], [4, 3]], "dominoes": [[5, 1], [4, 5], [6, 6], [0, 0], [0, 3], [3, 3], [1, 1], [2, 2], [4, 6], [5, 2]], "regions": [[[3, 3], [3, 4], [4, 3]], [[1, 2], [2, 2]], [[2, 1], [3, 1]], [[1, 3], [1, 4], [2, 3], [2, 4]], [[4, 1]], [[0, 2]], [[1, 1]], [[2, 0], [3, 0]], [[2, 5], [3, 5]], [[3, 2]], [[4, 2]]], "conditions": [{"t": "sum", "v": 11}, {"t": "neq"}, {"t": "sum", "v": 7}, {"t": "sum", "v": 18}, {"t": "sum", "v": 2}, {"t": "sum", "v": 5}, {"t": "sum", "v": 4}, {"t": "sum", "v": 0}, {"t": "sum", "v": 2}, {"t": "sum", "v": 4}, {"t": "sum", "v": 5}], "solution": [{"cells": [[0, 2], [1, 2]], "vals": [5, 1]}, {"cells": [[1, 1], [2, 1]], "vals": [4, 5]}, {"cells": [[1, 3], [1, 4]], "vals": [6, 6]}, {"cells": [[2, 0], [3, 0]], "vals": [0, 0]}, {"cells": [[2, 2], [2, 3]], "vals": [0, 3]}, {"cells": [[2, 4], [3, 4]], "vals": [3, 3]}, {"cells": [[2, 5], [3, 5]], "vals": [1, 1]}, {"cells": [[3, 1], [4, 1]], "vals": [2, 2]}, {"cells": [[3, 2], [3, 3]], "vals": [4, 6]}, {"cells": [[4, 2], [4, 3]], "vals": [5, 2]}]}, {"w": 6, "h": 5, "cells": [[0, 0], [0, 1], [0, 2], [0, 3], [0, 4], [0, 5], [1, 1], [1, 2], [1, 3], [1, 4], [1, 5], [2, 0], [2, 1], [2, 3], [2, 4], [2, 5], [3, 2], [3, 3], [3, 4], [4, 4]], "dominoes": [[5, 2], [4, 4], [3, 0], [3, 0], [3, 5], [5, 6], [3, 3], [1, 2], [1, 5], [6, 0]], "regions": [[[1, 4], [1, 5], [2, 4]], [[0, 1]], [[1, 1], [2, 0], [2, 1]], [[0, 4], [0, 5]], [[3, 3], [3, 4]], [[3, 2]], [[0, 2], [0, 3], [1, 2], [1, 3]], [[2, 5]], [[2, 3]], [[4, 4]], [[0, 0]]], "conditions": [{"t": "free"}, {"t": "lt", "v": 3}, {"t": "eq"}, {"t": "gt", "v": 2}, {"t": "sum", "v": 11}, {"t": "sum", "v": 1}, {"t": "sum", "v": 18}, {"t": "sum", "v": 2}, {"t": "sum", "v": 6}, {"t": "sum", "v": 0}, {"t": "sum", "v": 5}], "solution": [{"cells": [[0, 0], [0, 1]], "vals": [5, 2]}, {"cells": [[0, 2], [0, 3]], "vals": [4, 4]}, {"cells": [[0, 4], [1, 4]], "vals": [3, 0]}, {"cells": [[0, 5], [1, 5]], "vals": [3, 0]}, {"cells": [[1, 1], [1, 2]], "vals": [3, 5]}, {"cells": [[1, 3], [2, 3]], "vals": [5, 6]}, {"cells": [[2, 0], [2, 1]], "vals": [3, 3]}, {"cells": [[2, 4], [2, 5]], "vals": [1, 2]}, {"cells": [[3, 2], [3, 3]], "vals": [1, 5]}, {"cells": [[3, 4], [4, 4]], "vals": [6, 0]}]}, {"w": 6, "h": 5, "cells": [[0, 0], [0, 1], [0, 2], [0, 3], [1, 1], [1, 2], [1, 3], [2, 0], [2, 1], [2, 2], [2, 3], [3, 0], [3, 1], [3, 2], [4, 0], [4, 1], [4, 2], [4, 3], [4, 4], [4, 5]], "dominoes": [[4, 5], [4, 6], [1, 1], [1, 1], [0, 0], [6, 6], [4, 1], [5, 0], [5, 2], [4, 0]], "regions": [[[3, 1]], [[0, 3], [1, 3], [2, 3]], [[4, 3], [4, 4]], [[2, 1], [2, 2], [3, 2]], [[0, 1], [0, 2]], [[2, 0], [3, 0]], [[0, 0]], [[1, 1], [1, 2]], [[4, 5]], [[4, 2]], [[4, 0]], [[4, 1]]], "conditions": [{"t": "sum", "v": 4}, {"t": "sum", "v": 6}, {"t": "sum", "v": 6}, {"t": "sum", "v": 3}, {"t": "sum", "v": 9}, {"t": "sum", "v": 12}, {"t": "lt", "v": 5}, {"t": "sum", "v": 2}, {"t": "sum", "v": 0}, {"t": "sum", "v": 5}, {"t": "lt", "v": 6}, {"t": "sum", "v": 0}], "solution": [{"cells": [[0, 0], [0, 1]], "vals": [4, 5]}, {"cells": [[0, 2], [0, 3]], "vals": [4, 6]}, {"cells": [[1, 1], [2, 1]], "vals": [1, 1]}, {"cells": [[1, 2], [2, 2]], "vals": [1, 1]}, {"cells": [[1, 3], [2, 3]], "vals": [0, 0]}, {"cells": [[2, 0], [3, 0]], "vals": [6, 6]}, {"cells": [[3, 1], [3, 2]], "vals": [4, 1]}, {"cells": [[4, 0], [4, 1]], "vals": [5, 0]}, {"cells": [[4, 2], [4, 3]], "vals": [5, 2]}, {"cells": [[4, 4], [4, 5]], "vals": [4, 0]}]}, {"w": 6, "h": 5, "cells": [[0, 0], [0, 1], [0, 2], [0, 3], [0, 4], [0, 5], [1, 1], [1, 2], [1, 3], [1, 4], [1, 5], [2, 1], [2, 2], [2, 3], [2, 4], [2, 5], [3, 3], [4, 1], [4, 2], [4, 3]], "dominoes": [[4, 3], [2, 6], [4, 4], [0, 0], [1, 1], [2, 0], [6, 6], [6, 1], [1, 4], [5, 5]], "regions": [[[0, 5], [1, 5]], [[2, 3], [3, 3]], [[0, 1], [1, 1]], [[1, 4], [2, 4]], [[1, 2], [2, 1], [2, 2]], [[2, 5]], [[0, 0]], [[0, 3]], [[4, 1], [4, 2], [4, 3]], [[0, 4]], [[0, 2]], [[1, 3]]], "conditions": [{"t": "lt", "v": 1}, {"t": "sum", "v": 7}, {"t": "sum", "v": 4}, {"t": "sum", "v": 6}, {"t": "sum", "v": 13}, {"t": "sum", "v": 1}, {"t": "sum", "v": 4}, {"t": "sum", "v": 4}, {"t": "free"}, {"t": "lt", "v": 5}, {"t": "sum", "v": 2}, {"t": "sum", "v": 2}], "solution": [{"cells": [[0, 0], [0, 1]], "vals": [4, 3]}, {"cells": [[0, 2], [1, 2]], "vals": [2, 6]}, {"cells": [[0, 3], [0, 4]], "vals": [4, 4]}, {"cells": [[0, 5], [1, 5]], "vals": [0, 0]}, {"cells": [[1, 1], [2, 1]], "vals": [1, 1]}, {"cells": [[1, 3], [1, 4]], "vals": [2, 0]}, {"cells": [[2, 2], [2, 3]], "vals": [6, 6]}, {"cells": [[2, 4], [2, 5]], "vals": [6, 1]}, {"cells": [[3, 3], [4, 3]], "vals": [1, 4]}, {"cells": [[4, 1], [4, 2]], "vals": [5, 5]}]}, {"w": 5, "h": 5, "cells": [[0, 0], [0, 1], [0, 2], [0, 3], [0, 4], [1, 0], [1, 1], [1, 2], [1, 3], [1, 4], [2, 1], [2, 2], [2, 3], [2, 4], [3, 0], [3, 1], [3, 2], [3, 3], [4, 2], [4, 3]], "dominoes": [[0, 1], [1, 1], [6, 6], [0, 1], [4, 4], [3, 6], [0, 4], [6, 1], [2, 2], [2, 2]], "regions": [[[1, 3]], [[3, 2], [4, 2], [4, 3]], [[1, 2], [2, 2]], [[0, 1], [0, 2], [0, 3], [1, 1]], [[3, 1]], [[0, 0], [1, 0]], [[0, 4], [1, 4], [2, 4]], [[2, 1]], [[3, 3]], [[3, 0]], [[2, 3]]], "conditions": [{"t": "sum", "v": 4}, {"t": "eq"}, {"t": "sum", "v": 10}, {"t": "sum", "v": 4}, {"t": "sum", "v": 1}, {"t": "sum", "v": 0}, {"t": "sum", "v": 16}, {"t": "sum", "v": 3}, {"t": "sum", "v": 2}, {"t": "gt", "v": 5}, {"t": "sum", "v": 0}], "solution": [{"cells": [[0, 0], [0, 1]], "vals": [0, 1]}, {"cells": [[0, 2], [0, 3]], "vals": [1, 1]}, {"cells": [[0, 4], [1, 4]], "vals": [6, 6]}, {"cells": [[1, 0], [1, 1]], "vals": [0, 1]}, {"cells": [[1, 2], [1, 3]], "vals": [4, 4]}, {"cells": [[2, 1], [2, 2]], "vals": [3, 6]}, {"cells": [[2, 3], [2, 4]], "vals": [0, 4]}, {"cells": [[3, 0], [3, 1]], "vals": [6, 1]}, {"cells": [[3, 2], [4, 2]], "vals": [2, 2]}, {"cells": [[3, 3], [4, 3]], "vals": [2, 2]}]}, {"w": 6, "h": 5, "cells": [[0, 0], [0, 1], [0, 3], [0, 4], [0, 5], [1, 1], [1, 2], [1, 3], [1, 4], [1, 5], [2, 1], [2, 2], [2, 3], [2, 4], [2, 5], [3, 1], [3, 3], [4, 1], [4, 2], [4, 3]], "dominoes": [[5, 2], [2, 2], [1, 4], [1, 1], [6, 6], [5, 5], [0, 0], [0, 1], [1, 0], [4, 4]], "regions": [[[0, 5]], [[4, 3]], [[2, 1], [2, 2], [3, 1]], [[0, 4], [1, 4]], [[4, 1], [4, 2]], [[0, 1], [1, 1]], [[2, 3], [3, 3]], [[1, 2]], [[0, 3], [1, 3]], [[1, 5], [2, 5]], [[0, 0]], [[2, 4]]], "conditions": [{"t": "sum", "v": 4}, {"t": "sum", "v": 4}, {"t": "sum", "v": 8}, {"t": "lt", "v": 6}, {"t": "sum", "v": 4}, {"t": "sum", "v": 3}, {"t": "eq"}, {"t": "sum", "v": 6}, {"t": "sum", "v": 4}, {"t": "sum", "v": 6}, {"t": "sum", "v": 5}, {"t": "sum", "v": 0}], "solution": [{"cells": [[0, 0], [0, 1]], "vals": [5, 2]}, {"cells": [[0, 3], [1, 3]], "vals": [2, 2]}, {"cells": [[0, 4], [0, 5]], "vals": [1, 4]}, {"cells": [[1, 1], [2, 1]], "vals": [1, 1]}, {"cells": [[1, 2], [2, 2]], "vals": [6, 6]}, {"cells": [[1, 4], [1, 5]], "vals": [5, 5]}, {"cells": [[2, 3], [3, 3]], "vals": [0, 0]}, {"cells": [[2, 4], [2, 5]], "vals": [0, 1]}, {"cells": [[3, 1], [4, 1]], "vals": [1, 0]}, {"cells": [[4, 2], [4, 3]], "vals": [4, 4]}]}, {"w": 5, "h": 5, "cells": [[0, 1], [0, 2], [0, 3], [1, 0], [1, 1], [1, 2], [1, 3], [1, 4], [2, 2], [2, 3], [2, 4], [3, 1], [3, 2], [3, 3], [3, 4], [4, 0], [4, 1], [4, 2], [4, 3], [4, 4]], "dominoes": [[2, 4], [0, 0], [6, 2], [4, 0], [5, 6], [3, 5], [1, 1], [4, 4], [2, 2], [2, 1]], "regions": [[[4, 0], [4, 1]], [[0, 2], [1, 2]], [[3, 4], [4, 3], [4, 4]], [[3, 1], [3, 2]], [[0, 3], [1, 3]], [[1, 0]], [[2, 2], [2, 3]], [[3, 3]], [[0, 1], [1, 1]], [[1, 4]], [[2, 4]], [[4, 2]]], "conditions": [{"t": "sum", "v": 4}, {"t": "sum", "v": 8}, {"t": "sum", "v": 9}, {"t": "eq"}, {"t": "sum", "v": 0}, {"t": "sum", "v": 6}, {"t": "neq"}, {"t": "sum", "v": 5}, {"t": "sum", "v": 4}, {"t": "gt", "v": 4}, {"t": "sum", "v": 6}, {"t": "sum", "v": 2}], "solution": [{"cells": [[0, 1], [0, 2]], "vals": [2, 4]}, {"cells": [[0, 3], [1, 3]], "vals": [0, 0]}, {"cells": [[1, 0], [1, 1]], "vals": [6, 2]}, {"cells": [[1, 2], [2, 2]], "vals": [4, 0]}, {"cells": [[1, 4], [2, 4]], "vals": [5, 6]}, {"cells": [[2, 3], [3, 3]], "vals": [3, 5]}, {"cells": [[3, 1], [3, 2]], "vals": [1, 1]}, {"cells": [[3, 4], [4, 4]], "vals": [4, 4]}, {"cells": [[4, 0], [4, 1]], "vals": [2, 2]}, {"cells": [[4, 2], [4, 3]], "vals": [2, 1]}]}, {"w": 5, "h": 5, "cells": [[0, 0], [0, 1], [0, 2], [0, 3], [1, 0], [1, 1], [1, 3], [1, 4], [2, 0], [2, 1], [2, 2], [2, 3], [3, 0], [3, 1], [3, 2], [3, 3], [4, 0], [4, 1], [4, 2], [4, 3]], "dominoes": [[1, 6], [6, 0], [5, 0], [5, 5], [0, 0], [2, 3], [4, 5], [3, 3], [2, 0], [1, 4]], "regions": [[[2, 0], [3, 0]], [[0, 1], [0, 2], [1, 1]], [[4, 1], [4, 2]], [[0, 3], [1, 3]], [[4, 0]], [[3, 3], [4, 3]], [[2, 1], [2, 2]], [[0, 0]], [[2, 3]], [[1, 4]], [[3, 1], [3, 2]], [[1, 0]]], "conditions": [{"t": "sum", "v": 3}, {"t": "sum", "v": 17}, {"t": "sum", "v": 1}, {"t": "sum", "v": 0}, {"t": "lt", "v": 3}, {"t": "sum", "v": 9}, {"t": "neq"}, {"t": "sum", "v": 1}, {"t": "sum", "v": 4}, {"t": "sum", "v": 0}, {"t": "sum", "v": 6}, {"t": "sum", "v": 5}], "solution": [{"cells": [[0, 0], [0, 1]], "vals": [1, 6]}, {"cells": [[0, 2], [0, 3]], "vals": [6, 0]}, {"cells": [[1, 0], [2, 0]], "vals": [5, 0]}, {"cells": [[1, 1], [2, 1]], "vals": [5, 5]}, {"cells": [[1, 3], [1, 4]], "vals": [0, 0]}, {"cells": [[2, 2], [3, 2]], "vals": [2, 3]}, {"cells": [[2, 3], [3, 3]], "vals": [4, 5]}, {"cells": [[3, 0], [3, 1]], "vals": [3, 3]}, {"cells": [[4, 0], [4, 1]], "vals": [2, 0]}, {"cells": [[4, 2], [4, 3]], "vals": [1, 4]}]}, {"w": 6, "h": 5, "cells": [[0, 0], [0, 1], [1, 0], [1, 1], [2, 0], [2, 1], [2, 2], [2, 3], [2, 4], [2, 5], [3, 0], [3, 1], [3, 2], [3, 3], [3, 4], [3, 5], [4, 0], [4, 1], [4, 2], [4, 3]], "dominoes": [[1, 2], [1, 6], [0, 0], [3, 3], [3, 2], [1, 4], [6, 5], [5, 5], [4, 2], [6, 0]], "regions": [[[3, 3]], [[2, 0], [3, 0], [4, 0]], [[2, 2], [2, 3]], [[4, 2]], [[3, 1], [3, 2]], [[2, 4], [2, 5], [3, 4]], [[0, 0], [1, 0]], [[0, 1], [1, 1]], [[4, 1]], [[2, 1]], [[3, 5]], [[4, 3]]], "conditions": [{"t": "sum", "v": 5}, {"t": "sum", "v": 16}, {"t": "sum", "v": 6}, {"t": "sum", "v": 6}, {"t": "sum", "v": 8}, {"t": "sum", "v": 8}, {"t": "sum", "v": 2}, {"t": "sum", "v": 2}, {"t": "sum", "v": 2}, {"t": "sum", "v": 0}, {"t": "sum", "v": 4}, {"t": "sum", "v": 0}], "solution": [{"cells": [[0, 0], [0, 1]], "vals": [1, 2]}, {"cells": [[1, 0], [2, 0]], "vals": [1, 6]}, {"cells": [[1, 1], [2, 1]], "vals": [0, 0]}, {"cells": [[2, 2], [3, 2]], "vals": [3, 3]}, {"cells": [[2, 3], [2, 4]], "vals": [3, 2]}, {"cells": [[2, 5], [3, 5]], "vals": [1, 4]}, {"cells": [[3, 0], [3, 1]], "vals": [6, 5]}, {"cells": [[3, 3], [3, 4]], "vals": [5, 5]}, {"cells": [[4, 0], [4, 1]], "vals": [4, 2]}, {"cells": [[4, 2], [4, 3]], "vals": [6, 0]}]}, {"w": 5, "h": 5, "cells": [[0, 1], [0, 2], [0, 3], [0, 4], [1, 2], [1, 3], [1, 4], [2, 2], [2, 3], [2, 4], [3, 0], [3, 1], [3, 2], [3, 3], [3, 4], [4, 0], [4, 1], [4, 2], [4, 3], [4, 4]], "dominoes": [[5, 6], [3, 2], [1, 4], [4, 4], [6, 6], [3, 5], [1, 0], [2, 3], [1, 3], [0, 4]], "regions": [[[1, 3]], [[4, 4]], [[1, 4], [2, 2], [2, 3], [2, 4]], [[0, 1]], [[3, 1], [3, 2]], [[0, 3], [0, 4]], [[1, 2]], [[3, 3], [4, 1], [4, 2], [4, 3]], [[3, 0], [4, 0]], [[3, 4]], [[0, 2]]], "conditions": [{"t": "sum", "v": 2}, {"t": "sum", "v": 4}, {"t": "sum", "v": 17}, {"t": "gt", "v": 4}, {"t": "neq"}, {"t": "sum", "v": 4}, {"t": "sum", "v": 4}, {"t": "sum", "v": 12}, {"t": "sum", "v": 2}, {"t": "sum", "v": 5}, {"t": "sum", "v": 6}], "solution": [{"cells": [[0, 1], [0, 2]], "vals": [5, 6]}, {"cells": [[0, 3], [1, 3]], "vals": [3, 2]}, {"cells": [[0, 4], [1, 4]], "vals": [1, 4]}, {"cells": [[1, 2], [2, 2]], "vals": [4, 4]}, {"cells": [[2, 3], [3, 3]], "vals": [6, 6]}, {"cells": [[2, 4], [3, 4]], "vals": [3, 5]}, {"cells": [[3, 0], [3, 1]], "vals": [1, 0]}, {"cells": [[3, 2], [4, 2]], "vals": [2, 3]}, {"cells": [[4, 0], [4, 1]], "vals": [1, 3]}, {"cells": [[4, 3], [4, 4]], "vals": [0, 4]}]}, {"w": 6, "h": 5, "cells": [[0, 1], [0, 2], [0, 4], [0, 5], [1, 0], [1, 1], [1, 4], [1, 5], [2, 1], [2, 2], [2, 3], [2, 4], [2, 5], [3, 1], [3, 3], [3, 4], [4, 0], [4, 1], [4, 2], [4, 3]], "dominoes": [[4, 4], [0, 0], [6, 6], [1, 4], [0, 1], [3, 3], [6, 6], [0, 2], [1, 1], [3, 3]], "regions": [[[2, 3], [3, 3]], [[0, 1], [0, 2]], [[2, 1], [2, 2]], [[1, 0]], [[1, 4], [1, 5], [2, 4], [2, 5]], [[3, 1], [4, 0], [4, 1], [4, 2]], [[1, 1]], [[0, 5]], [[4, 3]], [[3, 4]], [[0, 4]]], "conditions": [{"t": "lt", "v": 4}, {"t": "sum", "v": 8}, {"t": "sum", "v": 3}, {"t": "sum", "v": 1}, {"t": "free"}, {"t": "sum", "v": 6}, {"t": "sum", "v": 4}, {"t": "sum", "v": 6}, {"t": "sum", "v": 3}, {"t": "gt", "v": 1}, {"t": "sum", "v": 0}], "solution": [{"cells": [[0, 1], [0, 2]], "vals": [4, 4]}, {"cells": [[0, 4], [1, 4]], "vals": [0, 0]}, {"cells": [[0, 5], [1, 5]], "vals": [6, 6]}, {"cells": [[1, 0], [1, 1]], "vals": [1, 4]}, {"cells": [[2, 1], [3, 1]], "vals": [0, 1]}, {"cells": [[2, 2], [2, 3]], "vals": [3, 3]}, {"cells": [[2, 4], [2, 5]], "vals": [6, 6]}, {"cells": [[3, 3], [3, 4]], "vals": [0, 2]}, {"cells": [[4, 0], [4, 1]], "vals": [1, 1]}, {"cells": [[4, 2], [4, 3]], "vals": [3, 3]}]}]};
+const REGION_COLORS = ["#ccd8bf","#ecd9a8","#ccd6dd","#e2c9d4","#bcc7d9","#dec3a5","#c3d4c0","#e8d3c3","#d5cbe0","#cfe0da"];
+const PIP_MAP = {0:[],1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]};
+const $ = s => document.querySelector(s);
+const key = (r,c)=>r+","+c;
+
+let tier="easy", idx=0, P=null;
+let placements=[], selected=-1, selDir="h", selFlip=false;
+let startT=null, elapsed=0, timerInt=null, hints=0, won=false;
+let HINT_MAX=3; // per-puzzle hint allowance (playtest build; release can sell extra hints via rewarded ads)
+let cellRegion=new Map(), occ=new Map(), occEl=new Map();
+let lastPlaceAt=0, lastTrayI=-1, lastTrayAt=0; // ghost-click guards (mobile taps can fire a second synthetic click)
+
+/* ---- tutorial (hand-guided first run, two mini-levels) ---- */
+const TUT_LEVELS = [
+  {
+    puzzle:{
+      w:3, h:2,
+      cells:[[0,0],[0,1],[0,2],[1,0],[1,1],[1,2]],
+      regions:[ [[0,0],[0,1]], [[0,2],[1,0],[1,1],[1,2]] ],
+      conditions:[ {t:"sum",v:5}, {t:"free"} ],
+      dominoes:[[2,3],[0,5],[1,4]],
+      solution:[
+        {cells:[[0,0],[0,1]], vals:[2,3]},
+        {cells:[[1,0],[1,1]], vals:[0,5]},
+        {cells:[[0,2],[1,2]], vals:[1,4]}
+      ]
+    },
+    steps:[
+      {txt:"欢迎来到教学关，我一步步带你。先看下面牌席，点亮起来的这张牌。", glow:{type:"tray",i:0}, wait:"select0"},
+      {txt:"选中了。再点棋盘上亮起来的格子，把牌放上去。", glow:{type:"cell",r:0,c:0}, wait:"place0"},
+      {txt:"看到标记变成了「5 ✓」没有？这个区要求区里的点数加起来等于 5，2 加 3 正好。记住：数字标记就是'加起来等于它'。接着点第二张牌。", glow:{type:"tray",i:1}, wait:"select1"},
+      {txt:"点下面亮起来的格子，放下它。", glow:{type:"cell",r:1,c:0}, wait:"place1"},
+      {txt:"还剩最后一张，它要竖着放。先点这张牌。", glow:{type:"tray",i:2}, wait:"select2"},
+      {txt:"再点这个「方向」按钮，把它换成竖的。", glow:{type:"btn",id:"rotBtn"}, wait:"rotate"},
+      {txt:"最后，点右上角亮起来的格子放下它。", glow:{type:"cell",r:0,c:2}, wait:"place2"}
+    ]
+  },
+  {
+    puzzle:{
+      w:4, h:2,
+      cells:[[0,0],[0,1],[0,2],[0,3],[1,0],[1,1],[1,2],[1,3]],
+      regions:[ [[0,0],[0,1]], [[0,2],[0,3],[1,2],[1,3]], [[1,0],[1,1]] ],
+      conditions:[ {t:"eq"}, {t:"neq"}, {t:"free"} ],
+      dominoes:[[5,5],[2,6],[3,1],[0,4]],
+      solution:[
+        {cells:[[0,0],[0,1]], vals:[5,5]},
+        {cells:[[0,2],[0,3]], vals:[2,6]},
+        {cells:[[1,2],[1,3]], vals:[3,1]},
+        {cells:[[1,0],[1,1]], vals:[0,4]}
+      ]
+    },
+    steps:[
+      {txt:"第一关过了，漂亮。第二关学两种新标记。先点这张牌 — 注意看，它两头都是 5。", glow:{type:"tray",i:0}, wait:"select0"},
+      {txt:"点左上角亮起来的格子，放下它。", glow:{type:"cell",r:0,c:0}, wait:"place0"},
+      {txt:"这个区的标记是「＝」，意思是区里每个格子的点数都要相等。两头都是 5，所以亮勾。接着点下一张牌。", glow:{type:"tray",i:1}, wait:"select1"},
+      {txt:"点右上角亮起来的格子，放下它。", glow:{type:"cell",r:0,c:2}, wait:"place1"},
+      {txt:"这张放进了标「≠」的区。「≠」是互不相同：区里每个数都不能重复。还差一张同区的牌，点它。", glow:{type:"tray",i:2}, wait:"select2"},
+      {txt:"点下面亮起来的格子，放下它。", glow:{type:"cell",r:1,c:2}, wait:"place2"},
+      {txt:"看这个区：2、6、3、1 四个数各不相同，所以「≠」也亮勾了。最后一张，点它。", glow:{type:"tray",i:3}, wait:"select3"},
+      {txt:"点左下亮起来的格子放下。这块区没有标记，是自由区，怎么放都算对。", glow:{type:"cell",r:1,c:0}, wait:"place3"}
+    ]
+  }
+];
+let tut=false, tutStep=0, tutLevel=0;
+function curSteps(){ return TUT_LEVELS[tutLevel].steps; }
+
+function solvedSet(){ try{return JSON.parse(localStorage.getItem("xhgp_solved")||"[]")}catch(e){return[]} }
+function bestMap(){ try{return JSON.parse(localStorage.getItem("xhgp_best")||"{}")}catch(e){return{}} }
+
+function load(t,i){
+  tier=t; idx=i; P=PUZZLES[tier][idx];
+  placements=P.dominoes.map(()=>null);
+  selected=-1; selDir="h"; selFlip=false; hints=0; won=false;
+  stopTimer(); elapsed=0; startT=null; $("#clock").textContent="00:00"; $("#hintCt").textContent="0"; syncHintBtn();
+  cellRegion=new Map();
+  P.regions.forEach((reg,ri)=>reg.forEach(([r,c])=>cellRegion.set(key(r,c),ri)));
+  document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("on",b.dataset.tier===tier));
+  $("#pIdx").textContent=idx+1; $("#pTotal").textContent=PUZZLES[tier].length;
+  $("#solvedTag").style.display=solvedSet().includes(tier+"-"+idx)?"inline-block":"none";
+  render();
+}
+function orderedPair(){ const d=P.dominoes[selected]; return selFlip?[d[1],d[0]]:[d[0],d[1]]; }
+
+function dominoEl(vals, dir, extraClass){
+  const d=document.createElement("div");
+  d.className="domino "+dir+(extraClass?" "+extraClass:"");
+  vals.forEach(v=>{
+    const h=document.createElement("div"); h.className="half";
+    for(let i=0;i<9;i++){ const s=document.createElement("div"); if(PIP_MAP[v].includes(i)){const p=document.createElement("div");p.className="pip";s.appendChild(p);} h.appendChild(s); }
+    d.appendChild(h);
+  });
+  return d;
+}
+
+function render(){
+  const board=$("#board");
+  board.style.gridTemplateColumns=`repeat(${P.w},1fr)`;
+  board.innerHTML="";
+  const cellSet=new Set(P.cells.map(([r,c])=>key(r,c)));
+  const anchor=new Map(); // region -> anchor cell key (topmost, then leftmost)
+  P.regions.forEach((reg,ri)=>{ const s=[...reg].sort((a,b)=>a[0]-b[0]||a[1]-b[1])[0]; anchor.set(ri,key(s[0],s[1])); });
+  const status=regionStatus();
+  const prog=regionProgress();
+  const cellEls=new Map();
+  for(let r=0;r<P.h;r++)for(let c=0;c<P.w;c++){
+    const k=key(r,c), cell=document.createElement("div");
+    if(!cellSet.has(k)){ cell.className="cell hole"; board.appendChild(cell); continue; }
+    const ri=cellRegion.get(k);
+    cell.className="cell"; cell.style.background=REGION_COLORS[ri%REGION_COLORS.length];
+    if(anchor.get(ri)===k){
+      const cond=P.conditions[ri];
+      if(cond.t!=="free"){
+        const chip=document.createElement("div");
+        chip.className="chip"+(status[ri]?" ok":"");
+        let label=condLabel(cond);
+        if(status[ri]) label+=" ✓";
+        else if(cond.t==="sum" && prog[ri].filled>0) label=prog[ri].sum+"/"+cond.v;
+        chip.textContent=label;
+        cell.appendChild(chip);
+      }
+    }
+    cell.addEventListener("click",()=>onCell(r,c));
+    board.appendChild(cell);
+    cellEls.set(k,cell);
+  }
+  // placed dominoes as grid overlays
+  occ=new Map(); occEl=new Map();
+  placements.forEach((pl,i)=>{ if(pl) pl.cells.forEach(([r,c],j)=>occ.set(key(r,c),i)); });
+  placements.forEach((pl,i)=>{
+    if(!pl) return;
+    const [[r1,c1],[r2,c2]]=pl.cells;
+    const horiz = r1===r2;
+    const el=dominoEl(pl.vals, horiz?"h":"v");
+    el.style.gridColumn=`${Math.min(c1,c2)+1} / span ${horiz?2:1}`;
+    el.style.gridRow=`${Math.min(r1,r2)+1} / span ${horiz?1:2}`;
+    el.addEventListener("click",e=>{ e.stopPropagation(); if(!won && !tut){ if(Date.now()-lastPlaceAt<700) return; placements[i]=null; render(); } });
+    board.appendChild(el);
+    pl.cells.forEach(([r,c])=>occEl.set(key(r,c),el));
+  });
+  // highlight every cell the selected domino could cover
+  if(selected>=0 && !won){
+    const cand=new Set();
+    validPlacements().forEach(vp=>vp.cells.forEach(([r,c])=>cand.add(key(r,c))));
+    cand.forEach(k=>{ const el=cellEls.get(k); if(el) el.classList.add("cand"); });
+  }
+  // tray
+  const tray=$("#tray"); tray.innerHTML="";
+  P.dominoes.forEach((d,i)=>{
+    if(placements[i]){
+      const ph=document.createElement("div");
+      ph.className="domino h ghost";
+      tray.appendChild(ph);
+      return;
+    }
+    const vals = (i===selected&&selFlip)?[d[1],d[0]]:d;
+    const el=dominoEl(vals,"h", i===selected?"sel":"");
+    el.dataset.di=i;
+    el.addEventListener("click",()=>{
+      if(won) return;
+      const nowT=Date.now();
+      if(lastTrayI===i && nowT-lastTrayAt<450) return; // swallow ghost re-click
+      lastTrayI=i; lastTrayAt=nowT;
+      if(tut){
+        if(curSteps()[tutStep].wait==="select"+i){ selected=i; selFlip=false; advanceTut(); }
+        return;
+      }
+      selected = (selected===i?-1:i); if(selected>=0) selFlip=false; syncTools(); render();
+    });
+    tray.appendChild(el);
+  });
+  // only one domino left: pulse it so the player spots it
+  const leftIdx=P.dominoes.map((_,i)=>i).filter(i=>!placements[i]);
+  if(leftIdx.length===1 && !won){
+    const el=tray.querySelector(`.domino[data-di="${leftIdx[0]}"]`);
+    if(el) el.classList.add("glow");
+  }
+  syncTools();
+  applyGlow();
+}
+function applyGlow(){
+  if(!tut || tutStep>=curSteps().length) return;
+  const g=curSteps()[tutStep].glow;
+  if(!g) return;
+  if(g.type==="tray"){
+    const el=document.querySelector(`#tray .domino[data-di="${g.i}"]`);
+    if(el) el.classList.add("glow");
+  }else if(g.type==="cell"){
+    const cell=$("#board").children[g.r*P.w+g.c];
+    if(cell) cell.classList.add("glow");
+  }else if(g.type==="btn"){
+    const el=document.getElementById(g.id);
+    if(el) el.classList.add("glow");
+  }
+}
+function condLabel(cond){
+  return {sum:""+cond.v, eq:"＝", neq:"≠", gt:">"+cond.v, lt:"<"+cond.v}[cond.t]||"";
+}
+function regionProgress(){
+  const valsAt=new Map();
+  placements.forEach(pl=>{ if(pl) pl.cells.forEach(([r,c],j)=>valsAt.set(key(r,c),pl.vals[j])); });
+  return P.regions.map(reg=>{
+    const vals=reg.map(([r,c])=>valsAt.get(key(r,c)));
+    return { filled: vals.filter(v=>v!==undefined).length,
+             sum: vals.reduce((a,b)=>a+(b||0),0) };
+  });
+}
+function validPlacements(){
+  // every legal placement (both orientations) for the currently selected domino
+  if(selected<0) return [];
+  const cellSet=new Set(P.cells.map(([a,b])=>key(a,b)));
+  const out=[], seen=new Set();
+  for(const horiz of [true,false]){
+    for(const [r,c] of P.cells){
+      const cells = horiz? [[r,c],[r,c+1]] : [[r,c],[r+1,c]];
+      const id=cells.map(([a,b])=>key(a,b)).join("|");
+      if(seen.has(id)) continue;
+      if(cells.every(([a,b])=>cellSet.has(key(a,b)) && !occ.has(key(a,b)))){
+        seen.add(id); out.push({cells, horiz});
+      }
+    }
+  }
+  return out;
+}
+function regionStatus(){
+  // per region: fully filled && condition satisfied
+  const valsAt=new Map();
+  placements.forEach(pl=>{ if(pl) pl.cells.forEach(([r,c],j)=>valsAt.set(key(r,c),pl.vals[j])); });
+  return P.regions.map((reg,ri)=>{
+    const cond=P.conditions[ri];
+    const vals=reg.map(([r,c])=>valsAt.get(key(r,c)));
+    if(vals.some(v=>v===undefined)) return false;
+    switch(cond.t){
+      case "free": return true;
+      case "sum": return vals.reduce((a,b)=>a+b,0)===cond.v;
+      case "eq": return vals.every(v=>v===vals[0]);
+      case "neq": return new Set(vals).size===vals.length;
+      case "gt": return vals.every(v=>v>cond.v);
+      case "lt": return vals.every(v=>v<cond.v);
+    }
+    return false;
+  });
+}
+function syncTools(){
+  $("#rotBtn").disabled = selected<0;
+  $("#flipBtn").disabled = selected<0;
+  $("#rotBtn").textContent = "方向："+(selDir==="h"?"横":"竖");
+}
+function startTimer(){
+  if(startT!==null) return;
+  startT=Date.now()-elapsed;
+  timerInt=setInterval(()=>{ elapsed=Date.now()-startT;
+    const s=Math.floor(elapsed/1000);
+    $("#clock").textContent=String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0");
+  },250);
+}
+function stopTimer(){ if(timerInt) clearInterval(timerInt); timerInt=null; }
+
+function onCell(r,c){
+  if(won) return;
+  if(tut){
+    const wait=curSteps()[tutStep].wait;
+    if(wait.startsWith("place")){
+      const di=+wait.slice(5);
+      const inPair=TUT_LEVELS[tutLevel].puzzle.solution[di].cells.some(([a,b])=>a===r&&b===c);
+      if(selected===di && inPair) tutPlace(di);
+    }
+    return;
+  }
+  const k=key(r,c);
+  if(occ.has(k)){
+    if(selected>=0){
+      // holding a domino: never yank the placed one out, just flash it as "occupied"
+      const el=occEl.get(k);
+      if(el){ el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash"); }
+      return;
+    }
+    if(Date.now()-lastPlaceAt<700) return;
+    placements[occ.get(k)]=null; render(); return;
+  }
+  if(selected<0) return;
+  // place so that the tapped cell is actually covered by the domino
+  const vps=validPlacements().filter(vp=>vp.cells.some(([a,b])=>a===r&&b===c));
+  if(!vps.length) return;
+  const vp=vps.find(v=>(v.horiz?"h":"v")===selDir) || vps[0];
+  placements[selected]={cells:vp.cells, vals:orderedPair()};
+  lastPlaceAt=Date.now();
+  selected=-1; selFlip=false;
+  startTimer(); render(); checkWin();
+}
+/* ---- tutorial control ---- */
+function startTutorial(){
+  tut=true;
+  document.querySelectorAll(".tab").forEach(b=>b.classList.remove("on"));
+  $("#tabs").classList.add("tut-lock");
+  document.querySelector(".nav").classList.add("tut-lock");
+  $("#hintBtn").classList.add("tut-lock");
+  $("#coach").classList.add("show");
+  loadTutLevel(0);
+}
+function loadTutLevel(n){
+  tutLevel=n; tutStep=0; won=false;
+  P=TUT_LEVELS[n].puzzle;
+  placements=P.dominoes.map(()=>null);
+  selected=-1; selDir="h"; selFlip=false; hints=0;
+  stopTimer(); elapsed=0; startT=null; $("#clock").textContent="00:00"; $("#hintCt").textContent="0"; syncHintBtn();
+  cellRegion=new Map();
+  P.regions.forEach((reg,ri)=>reg.forEach(([r,c])=>cellRegion.set(key(r,c),ri)));
+  $("#pIdx").textContent="教学"; $("#pTotal").textContent="关";
+  $("#solvedTag").style.display="none";
+  $("#coachTxt").textContent=curSteps()[0].txt;
+  render();
+}
+function advanceTut(){
+  tutStep++;
+  if(tutStep<curSteps().length) $("#coachTxt").textContent=curSteps()[tutStep].txt;
+  render();
+}
+function tutPlace(di){
+  const sol=TUT_LEVELS[tutLevel].puzzle.solution[di];
+  let cells=sol.cells.map(([r,c])=>[r,c]), vals=[...sol.vals];
+  if(cells[0][0]>cells[1][0] || (cells[0][0]===cells[1][0] && cells[0][1]>cells[1][1])){
+    cells=[cells[1],cells[0]]; vals=[vals[1],vals[0]];
+  }
+  placements[di]={cells, vals};
+  lastPlaceAt=Date.now();
+  selected=-1; selFlip=false; selDir="h";
+  if(placements.every(p=>p)){ render(); checkWin(); return; }
+  advanceTut();
+}
+function tutFinish(){
+  if(tutLevel===0){ loadTutLevel(1); return; }
+  won=true; stopTimer();
+  localStorage.setItem("xhgp_tut","1");
+  $("#winStats").innerHTML="教学完成！正式关卡就是棋盘更大、条件多几种。<br>记不住规则随时点上方「玩法」，每种条件都带了例子。<br>先从简单第一题开始。";
+  $("#winAgain").style.display="none";
+  $("#winNext").textContent="去玩第一题 ›";
+  setTimeout(()=>$("#winMask").classList.add("show"),350);
+}
+function endTutorial(){
+  tut=false; tutStep=0;
+  $("#coach").classList.remove("show");
+  $("#tabs").classList.remove("tut-lock");
+  document.querySelector(".nav").classList.remove("tut-lock");
+  $("#hintBtn").classList.remove("tut-lock");
+  $("#winAgain").style.display="";
+  $("#winNext").textContent="下一题 ›";
+  load("easy",0);
+}
+
+function checkWin(){
+  if(placements.some(p=>!p)) return;
+  if(!regionStatus().every(Boolean)) return;
+  if(tut){ tutFinish(); return; }
+  won=true; stopTimer();
+  const id=tier+"-"+idx;
+  const ss=solvedSet(); if(!ss.includes(id)){ ss.push(id); localStorage.setItem("xhgp_solved",JSON.stringify(ss)); }
+  const bm=bestMap(); const s=Math.floor(elapsed/1000);
+  if(!bm[id]||s<bm[id]) bm[id]=s;
+  localStorage.setItem("xhgp_best",JSON.stringify(bm));
+  $("#solvedTag").style.display="inline-block";
+  $("#winStats").innerHTML=`难度 <b>${{easy:"简单",medium:"中等",hard:"困难"}[tier]}</b> · 第 <b>${idx+1}</b> 题<br>用时 <b>${$("#clock").textContent}</b> · 提示 <b>${hints}</b> 次 · 最佳 <b>${String(Math.floor(bm[id]/60)).padStart(2,"0")}:${String(bm[id]%60).padStart(2,"0")}</b>`;
+  setTimeout(()=>$("#winMask").classList.add("show"),350);
+}
+function syncHintBtn(){
+  const left=Math.max(0,HINT_MAX-hints);
+  const b=$("#hintBtn");
+  b.textContent = left>0 ? `提示一手（剩 ${left}）` : "提示已用完";
+  b.disabled = left<=0 || won;
+}
+function hint(){
+  if(won||tut) return;
+  if(hints>=HINT_MAX) return;
+  // find first domino not placed exactly as solution
+  for(let i=0;i<P.dominoes.length;i++){
+    const sol=P.solution[i];
+    const pl=placements[i];
+    let ok=false;
+    if(pl){
+      const pm=new Map(pl.cells.map(([r,c],j)=>[key(r,c),pl.vals[j]]));
+      ok = sol.cells.every(([r,c],j)=>pm.get(key(r,c))===sol.vals[j]);
+    }
+    if(ok) continue;
+    // free the target cells
+    sol.cells.forEach(([r,c])=>{ const o=occ.get(key(r,c)); if(o!==undefined&&o!==i) placements[o]=null; });
+    let hcells=sol.cells.map(([r,c])=>[r,c]), hvals=[...sol.vals];
+    if(hcells[0][0]>hcells[1][0] || (hcells[0][0]===hcells[1][0] && hcells[0][1]>hcells[1][1])){
+      hcells=[hcells[1],hcells[0]]; hvals=[hvals[1],hvals[0]];
+    }
+    placements[i]={cells:hcells, vals:hvals};
+    lastPlaceAt=Date.now();
+    hints++; $("#hintCt").textContent=hints;
+    startTimer(); render();
+    checkWin();
+    syncHintBtn();
+    return;
+  }
+}
+
+document.querySelectorAll(".tab").forEach(b=>b.addEventListener("click",()=>{ if(!tut) load(b.dataset.tier,0); }));
+$("#prevBtn").addEventListener("click",()=>{ if(!tut) load(tier,(idx-1+PUZZLES[tier].length)%PUZZLES[tier].length); });
+$("#nextBtn").addEventListener("click",()=>{ if(!tut) load(tier,(idx+1)%PUZZLES[tier].length); });
+$("#resetBtn").addEventListener("click",()=>{ if(!tut) load(tier,idx); });
+$("#rotBtn").addEventListener("click",()=>{
+  if(tut){
+    if(curSteps()[tutStep].wait==="rotate" && selDir==="h"){ selDir="v"; advanceTut(); }
+    return;
+  }
+  selDir=selDir==="h"?"v":"h"; syncTools();
+});
+$("#flipBtn").addEventListener("click",()=>{ if(tut) return; selFlip=!selFlip; render(); });
+$("#hintBtn").addEventListener("click",hint);
+$("#howBtn").addEventListener("click",()=>$("#howMask").classList.add("show"));
+$("#howClose").addEventListener("click",()=>{ $("#howMask").classList.remove("show"); localStorage.setItem("xhgp_seen","1"); });
+$("#howTut").addEventListener("click",()=>{ $("#howMask").classList.remove("show"); localStorage.setItem("xhgp_seen","1"); startTutorial(); });
+$("#tutBtn").addEventListener("click",()=>{ if(!tut) startTutorial(); });
+$("#tutSkip").addEventListener("click",()=>{ localStorage.setItem("xhgp_tut","1"); endTutorial(); });
+$("#winAgain").addEventListener("click",()=>$("#winMask").classList.remove("show"));
+$("#winNext").addEventListener("click",()=>{
+  $("#winMask").classList.remove("show");
+  if(tut){ endTutorial(); return; }
+  load(tier,(idx+1)%PUZZLES[tier].length);
+});
+
+load("easy",0);
+if(!localStorage.getItem("xhgp_seen")){ $("#howMask").classList.add("show"); }
+</script>
+</body>
+</html>
